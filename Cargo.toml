@@ -9,7 +9,7 @@ repository = "https://github.com/arthurhoch/db-mcp"
 readme = "README.md"
 
 [dependencies]
-base64 = "0.22"
+base64 = "0.23"
 bigdecimal = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
