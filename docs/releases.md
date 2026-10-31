@@ -44,6 +44,7 @@ On Linux, use `sha256sum -c` in place of `shasum -a 256 -c`. On Windows, compare
 `Get-FileHash .\db-mcp-windows-x64.zip -Algorithm SHA256` with the corresponding
 entry in `SHA256SUMS`. These commands do not require Rust.
 
-The Linux binaries target glibc systems using the Ubuntu 24.04 build environment.
+Windows packages link the C runtime statically. The Linux binaries target glibc
+systems using the Ubuntu 24.04 build environment.
 macOS packages are not notarized with an Apple Developer identity; GitHub
 provenance identifies the workflow that produced each archive.

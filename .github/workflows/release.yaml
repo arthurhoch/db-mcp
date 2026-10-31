@@ -27,7 +27,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag || github.ref_name }}
           persist-credentials: false
       - id: version
         env:
@@ -44,8 +43,6 @@ jobs:
   build:
     needs: version
     uses: ./.github/workflows/build.yaml
-    with:
-      ref: ${{ needs.version.outputs.tag }}
 
   security:
     needs: version
@@ -90,5 +87,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.version.outputs.tag }}
         run: |
-          gh release create "$TAG" dist/*.tar.gz dist/*.zip dist/SHA256SUMS \
-            --verify-tag --generate-notes --title "DB MCP $TAG" --latest
+          gh release create "$TAG" --draft --verify-tag --generate-notes --title "DB MCP $TAG"
+          gh release upload "$TAG" dist/*.tar.gz dist/*.zip dist/SHA256SUMS
+          gh release edit "$TAG" --draft=false --latest

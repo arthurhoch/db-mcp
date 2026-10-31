@@ -49,19 +49,17 @@ async fn concurrent_calls_keep_independent_destinations() {
     let first = common::Fixture::sqlite();
     let second = common::Fixture::sqlite();
     let second_path = second.directory.path().join("databases/ddl.toml");
-    let second_config = fs::read_to_string(&second_path)
-        .unwrap()
-        .replace("id=\"ddl\"", "id=\"second\"")
-        .replace(
-            "sqlite:../sample.db",
-            &format!(
-                "sqlite:{}",
-                second.directory.path().join("sample.db").display()
-            ),
-        );
+    let mut second_config: toml::Value =
+        toml::from_str(&fs::read_to_string(&second_path).unwrap()).unwrap();
+    second_config["id"] = "second".into();
+    second_config["connection"]["url"] = format!(
+        "sqlite:{}",
+        second.directory.path().join("sample.db").display()
+    )
+    .into();
     fs::write(
         first.directory.path().join("databases/second.toml"),
-        second_config,
+        toml::to_string(&second_config).unwrap(),
     )
     .unwrap();
     let service = first.service();
