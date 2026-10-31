@@ -1,0 +1,94 @@
+name: Build packages
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build; empty uses the triggering commit.
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  CARGO_BUILD_JOBS: "2"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, platform: linux-x64, binary: target/release/db-mcp }
+          - { runner: ubuntu-24.04-arm, platform: linux-arm64, binary: target/release/db-mcp }
+          - { runner: macos-15-intel, platform: macos-x64, binary: target/release/db-mcp }
+          - { runner: macos-15, platform: macos-arm64, binary: target/release/db-mcp }
+          - { runner: windows-2025, platform: windows-x64, binary: target/release/db-mcp.exe }
+          - { runner: windows-11-arm, platform: windows-arm64, binary: target/release/db-mcp.exe }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - name: Activate pinned toolchain
+        run: rustup show
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: rust-${{ matrix.platform }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', '.github/workflows/build.yaml') }}
+      - name: Formatting
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Tests
+        run: cargo test --all-targets --locked
+      - name: Release build
+        run: cargo build --release --locked
+      - name: Release MCP smoke tests
+        env:
+          DB_MCP_TEST_BINARY: ${{ matrix.binary }}
+        run: cargo test --locked --test mcp_stdio
+      - name: Package binary, demo and configuration examples
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          BINARY: ${{ matrix.binary }}
+        run: |
+          package="dist/db-mcp-$PLATFORM"
+          mkdir -p "$package"
+          cp "$BINARY" README.md LICENSE "$package/"
+          cp -R docs/examples/config "$package/config-examples"
+          cargo run --locked --example create_demo -- "$package/demo"
+          "$BINARY" --version
+          "$BINARY" --config "$package/demo/config/global.toml" --check-config
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            export PACKAGE_DIR="$package"
+            export ARCHIVE_PATH="$package.zip"
+            # PowerShell expands these environment variables, not Bash.
+            # shellcheck disable=SC2016
+            pwsh -NoProfile -Command 'Compress-Archive -Path $env:PACKAGE_DIR -DestinationPath $env:ARCHIVE_PATH'
+          else
+            tar -czf "$package.tar.gz" -C dist "db-mcp-$PLATFORM"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: db-mcp-${{ matrix.platform }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

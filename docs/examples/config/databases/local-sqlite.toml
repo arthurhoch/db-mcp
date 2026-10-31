@@ -1,0 +1,12 @@
+# O arquivo é relativo a este TOML e precisa existir antes de iniciar.
+# Este exemplo não cria nem inclui um banco de dados.
+config_version = 1
+id = "local-sqlite"
+name = "SQLite local — Investigação"
+aliases = ["sqlite local", "base local de investigação"]
+description = "Arquivo SQLite local indicado pelo operador para investigação."
+engine = "sqlite"
+access_mode = "read_only"
+
+[connection]
+url = "sqlite:./sample.db"

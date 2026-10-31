@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yaml
+
+  security:
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/security.yaml
+
+  integration:
+    name: Four database tests
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      DB_MCP_INTEGRATION: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup show
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: rust-integration-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+      - name: Start disposable databases
+        run: docker compose -p db-mcp-ci -f tests/compose.yaml up -d --wait --wait-timeout 600
+      - name: Test all four databases
+        run: cargo test --all-targets --locked -- --include-ignored --test-threads=1
+      - name: Database logs on failure
+        if: failure()
+        run: docker compose -p db-mcp-ci -f tests/compose.yaml logs --no-color --tail 100
+      - name: Remove disposable databases
+        if: always()
+        run: docker compose -p db-mcp-ci -f tests/compose.yaml down -v
+
+  passed:
+    name: CI passed
+    if: always()
+    needs: [build, security, integration]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every check to pass
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+          INTEGRATION_RESULT: ${{ needs.integration.result }}
+        run: |
+          test "$BUILD_RESULT" = success
+          test "$SECURITY_RESULT" = success
+          test "$INTEGRATION_RESULT" = success

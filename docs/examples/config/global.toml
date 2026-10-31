@@ -1,0 +1,23 @@
+# Exemplo v1; ajustar caminhos e limites para a instalação local.
+config_version = 1
+databases_dir = "./databases"
+
+[server]
+transport = "stdio"
+
+[execution]
+query_timeout_seconds = 30
+max_rows = 500
+max_result_bytes = 1048576
+max_sql_bytes = 262144
+max_parameter_bytes = 262144
+max_batch_statements = 50
+max_concurrent_operations = 4
+
+[connections]
+max_open_total = 16
+max_open_per_database = 4
+acquire_timeout_seconds = 10
+
+[logging]
+level = "info"

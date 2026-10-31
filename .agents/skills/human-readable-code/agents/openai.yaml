@@ -1,0 +1,7 @@
+interface:
+  display_name: "Human Readable Code — Rust"
+  short_description: "Readable Rust: ownership, errors, async and rustfmt"
+  default_prompt: "Apply $human-readable-code and its Rust reference to this task."
+
+policy:
+  allow_implicit_invocation: true

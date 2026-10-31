@@ -1,0 +1,7 @@
+interface:
+  display_name: "Simple Software Architecture — Rust"
+  short_description: "Rust modules, validation and transaction boundaries"
+  default_prompt: "Apply $simple-software-architecture to the Rust modules in this task."
+
+policy:
+  allow_implicit_invocation: true

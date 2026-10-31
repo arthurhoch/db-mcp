@@ -1,0 +1,14 @@
+# Exemplo fictício; fornecer credenciais locais.
+config_version = 1
+id = "erp-oracle-homologacao"
+name = "ERP — Homologação"
+aliases = ["erp hml", "oracle homologação"]
+description = "Banco de homologação do ERP, com pedidos e faturamento."
+engine = "oracle"
+access_mode = "read_only"
+default_schema = "ERP"
+
+[connection]
+url = "oracle://oracle.example.invalid:1521/ERP_HML"
+username = "erp_reader"
+password = "SUBSTITUIR_LOCALMENTE"

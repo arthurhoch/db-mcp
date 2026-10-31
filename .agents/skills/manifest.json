@@ -1,0 +1,40 @@
+{
+  "format_version": 2,
+  "scope": "project",
+  "skills": [
+    {
+      "name": "human-readable-code",
+      "source": "iam-apps/.agents/skills/human-readable-code",
+      "adapted": true
+    },
+    {
+      "name": "simple-software-architecture",
+      "source": "iam-apps/.agents/skills/simple-software-architecture",
+      "adapted": true
+    },
+    {
+      "name": "rust-best-practices",
+      "repository": "https://github.com/apollographql/skills",
+      "revision": "ff4534868e089580c2e09563c20f86a410179628",
+      "source_path": "skills/rust-best-practices",
+      "adapted": true,
+      "license_file": "rust-best-practices/LICENSE.upstream"
+    },
+    {
+      "name": "rust-async-patterns",
+      "repository": "https://github.com/wshobson/agents",
+      "revision": "0874a27b17a22e2b7c2e2bcd725768e0803cad06",
+      "source_path": "plugins/systems-programming/skills/rust-async-patterns",
+      "adapted": true,
+      "license_file": "rust-async-patterns/LICENSE.upstream"
+    },
+    {
+      "name": "rust-testing",
+      "repository": "https://github.com/affaan-m/ECC",
+      "revision": "b38be6a7f6350964d59328b52f0624e1d1d552d1",
+      "source_path": "skills/rust-testing",
+      "adapted": true,
+      "license_file": "rust-testing/LICENSE.upstream"
+    }
+  ]
+}
