@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Update the direct `base64` dependency from 0.22.1 to 0.23.1.
+
 ## 0.1.0
 
 - Oracle, PostgreSQL, MySQL and SQLite over MCP STDIO.
