@@ -3,6 +3,7 @@
 | Guia | Conteúdo |
 | --- | --- |
 | [Configuração](configuration.md) | Arquivo global, conexões, credenciais e limites. |
+| [Copilot no VS Code](copilot.md) | Configuração MCP, inicialização e consulta na demo. |
 | [MCP](mcp.md) | Ferramentas, parâmetros, respostas e erros. |
 | [Bancos](database-adapters.md) | Drivers, dialetos, tipos e restrições de transação. |
 | [Arquitetura](architecture.md) | Módulos, fluxo de execução e controles de acesso. |

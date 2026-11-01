@@ -64,6 +64,14 @@ destination, pass its path after `--example create_demo --`.
 
 ## Connect to an agent
 
+### GitHub Copilot in VS Code
+
+Follow the [Copilot setup guide](docs/copilot.md) for a `.vscode/mcp.json`
+example, server startup and a demo query. VS Code manages the executable as a
+STDIO subprocess; no separate daemon is required.
+
+### Codex
+
 Example for a client using the Codex TOML configuration format:
 
 ```toml
