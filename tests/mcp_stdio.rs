@@ -5,6 +5,7 @@ use std::{ffi::OsString, process::Stdio, time::Duration};
 
 use db_mcp::config::Engine;
 use serde_json::{Value, json};
+use sha1::{Digest, Sha1};
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     process::{ChildStdin, ChildStdout, Command},
@@ -191,7 +192,8 @@ async fn stdio_executes_oracle_bindings_without_client_libraries() {
 #[ignore = "Dedicated Oracle container; DB_MCP_INTEGRATION=1"]
 async fn stdio_connects_to_oracle_with_an_11g_only_password_verifier() {
     let username = format!("DBMCP_11G_{}", uuid::Uuid::new_v4().simple()).to_uppercase();
-    let fixture = common::Fixture::oracle_with_user(&username, "DisposableTest123");
+    let password = format!("TestAa1{}", uuid::Uuid::new_v4().simple());
+    let fixture = common::Fixture::oracle_with_user(&username, &password);
     let config = oracledb::Config::default()
         .set_credentials("system", "DisposableRoot123")
         .set_connect_string("127.0.0.1:51521/FREEPDB1")
@@ -199,10 +201,20 @@ async fn stdio_connects_to_oracle_with_an_11g_only_password_verifier() {
     let admin = oracledb::connect(config).unwrap();
 
     // Oracle's 11G format is S: followed by SHA-1(password || salt) and the salt.
-    let verifier = "S:062E6803F598BA0AC4216334D0F6585DB4205B6D0102030405060708090A";
+    let salt = uuid::Uuid::new_v4();
+    let salt = &salt.as_bytes()[..10];
+    let mut hash = Sha1::new();
+    hash.update(password.as_bytes());
+    hash.update(salt);
+    let verifier: String = hash
+        .finalize()
+        .iter()
+        .chain(salt)
+        .map(|byte| format!("{byte:02X}"))
+        .collect();
     admin
         .execute(
-            &format!("CREATE USER {username} IDENTIFIED BY VALUES '{verifier}'"),
+            &format!("CREATE USER {username} IDENTIFIED BY VALUES 'S:{verifier}'"),
             &[],
         )
         .unwrap();
