@@ -36,20 +36,28 @@ VPD com pacote Oracle. Verificam contexto compartilhado entre statements,
 isolamento entre chamadas, escrita filtrada, rollback, falha na preparação e
 efeito desconhecido quando um pacote confirma a transação internamente.
 
-## Ambientes verificados em 2026-10-31
+## Ambientes verificados em 2026-11-04
 
 | Cliente / banco | Resultado registrado |
 | --- | --- |
-| macOS 26.6.2 ARM64, Rust 1.99.1 | 49 testes aprovados: 31 locais e 18 de rede. Fmt, Clippy e build release aprovados. |
+| macOS 26.6.2 ARM64, Rust 1.99.1 | 50 testes aprovados (31 locais e 19 de rede). Fmt, Clippy e build release aprovados. |
 | PostgreSQL 17.11 | Servidor Linux ARM64 em container. |
 | MySQL 8.4.13 | Servidor Linux ARM64 em container. |
-| Oracle 23.0.0.0.0, VERSION_FULL 23.26.3.0.0 | Servidor Linux ARM64; cliente macOS com oracledb 26.0.0-beta.5. |
+| Oracle 23.0.0.0.0, VERSION_FULL 23.26.3.0.0 | Servidor Linux ARM64 e cliente macOS com oracledb no commit `08554f3a`. |
+| Oracle Database Enterprise Edition 19.19.0.0.0 | Servidor Linux ARM64 em container. Nove testes Oracle do DB MCP e 16 testes de conexão do oracledb aprovados. |
 | SQLite 3.51.3 embutido | Arquivos reais temporários. |
 
 Os testes do processo MCP cobrem catálogo, versão real, SELECT parametrizado,
 bloqueio de escrita e a recusa de RSO_DEBUG_PACKETS. Rodam sem ORACLE_HOME,
 LD_LIBRARY_PATH ou DYLD_LIBRARY_PATH. O cliente é JSON-RPC dedicado, com negociação
 MCP 2025-11-25.
+
+O teste de autenticação cria uma conta com apenas o verificador de senha `11G`.
+No Oracle Free 23.26.3.0.0 e no Oracle Database 19.19.0.0.0, o binário v0.1.1
+retorna `ORA-01017` para essa configuração. O build com a correção da Oracle
+conecta e executa uma consulta parametrizada. No 19c, os dois binários também
+executaram a consulta com a mesma conta e senha quando o servidor tinha os
+verificadores `11G 12C`.
 
 `DB_MCP_TEST_BINARY` permite executar esses testes contra um binário externo.
 A CI usa essa variável para validar o executável release antes de empacotá-lo.

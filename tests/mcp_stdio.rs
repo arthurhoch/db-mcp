@@ -188,6 +188,44 @@ async fn stdio_executes_oracle_bindings_without_client_libraries() {
 }
 
 #[tokio::test]
+#[ignore = "Dedicated Oracle container; DB_MCP_INTEGRATION=1"]
+async fn stdio_connects_to_oracle_with_an_11g_only_password_verifier() {
+    let username = format!("DBMCP_11G_{}", uuid::Uuid::new_v4().simple()).to_uppercase();
+    let fixture = common::Fixture::oracle_with_user(&username, "DisposableTest123");
+    let config = oracledb::Config::default()
+        .set_credentials("system", "DisposableRoot123")
+        .set_connect_string("127.0.0.1:51521/FREEPDB1")
+        .unwrap();
+    let admin = oracledb::connect(config).unwrap();
+
+    // Oracle's 11G format is S: followed by SHA-1(password || salt) and the salt.
+    let verifier = "S:062E6803F598BA0AC4216334D0F6585DB4205B6D0102030405060708090A";
+    admin
+        .execute(
+            &format!("CREATE USER {username} IDENTIFIED BY VALUES '{verifier}'"),
+            &[],
+        )
+        .unwrap();
+    admin
+        .execute(&format!("GRANT CREATE SESSION TO {username}"), &[])
+        .unwrap();
+    let row = admin
+        .query_row(
+            "SELECT password_versions FROM dba_users WHERE username = :1",
+            &[&username],
+        )
+        .unwrap();
+    let password_versions: String = row.get(0).unwrap();
+    assert_eq!(password_versions.trim(), "11G");
+
+    stdio_contract(fixture).await;
+
+    admin
+        .execute(&format!("DROP USER {username}"), &[])
+        .unwrap();
+}
+
+#[tokio::test]
 async fn oracle_packet_tracing_is_rejected_before_it_can_pollute_stdout() {
     let fixture = common::Fixture::sqlite();
     std::fs::write(

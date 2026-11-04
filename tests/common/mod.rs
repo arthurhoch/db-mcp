@@ -25,11 +25,7 @@ impl Fixture {
     }
 
     pub fn network(engine: Engine) -> Self {
-        assert_eq!(
-            std::env::var("DB_MCP_INTEGRATION").as_deref(),
-            Ok("1"),
-            "Use somente os containers descartáveis de tests/compose.yaml e defina DB_MCP_INTEGRATION=1."
-        );
+        require_network_integration();
         let (url, password) = match engine {
             Engine::Postgresql => (
                 "postgresql://127.0.0.1:55432/dbmcp_test",
@@ -47,6 +43,17 @@ impl Fixture {
             engine,
             url,
             "dbmcp_test",
+            password,
+        )
+    }
+
+    pub fn oracle_with_user(username: &str, password: &str) -> Self {
+        require_network_integration();
+        Self::create(
+            tempfile::tempdir().unwrap(),
+            Engine::Oracle,
+            "oracle://127.0.0.1:51521/FREEPDB1",
+            username,
             password,
         )
     }
@@ -108,6 +115,14 @@ impl Fixture {
             Engine::Sqlite => format!("?{index}"),
         }
     }
+}
+
+fn require_network_integration() {
+    assert_eq!(
+        std::env::var("DB_MCP_INTEGRATION").as_deref(),
+        Ok("1"),
+        "Use somente os containers descartáveis de tests/compose.yaml e defina DB_MCP_INTEGRATION=1."
+    );
 }
 
 pub async fn execute(service: &ExecutionService, id: &str, sql: &str) -> Value {

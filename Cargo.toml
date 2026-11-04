@@ -1,6 +1,6 @@
 [package]
 name = "db-mcp"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 rust-version = "1.99"
 description = "Local MCP server for Oracle, PostgreSQL, MySQL and SQLite"
@@ -14,7 +14,8 @@ bigdecimal = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 futures-util = "0.3"
-oracledb = "=26.0.0-beta.5"
+# The 11G password verifier fix is upstream but absent from beta.5.
+oracledb = { git = "https://github.com/oracle/rust-oracledb.git", rev = "08554f3adc58322c40d36ffc77c8f5ffd53f9293" }
 percent-encoding = "2"
 rmcp = { version = "3.8.0", features = ["server", "transport-io"] }
 schemars = "1"
