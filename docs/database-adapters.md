@@ -2,7 +2,7 @@
 
 | Banco | Driver | Placeholder | Leitura nativa |
 | --- | --- | --- | --- |
-| Oracle | oracledb 26.0.0-beta.5, Rust. | `:1`, `:2`. | SET TRANSACTION READ ONLY. |
+| Oracle | oracledb, Rust. | `:1`, `:2`. | SET TRANSACTION READ ONLY. |
 | PostgreSQL | SQLx. | `$1`, `$2`. | BEGIN READ ONLY. |
 | MySQL | SQLx. | `?`, em ordem. | START TRANSACTION READ ONLY. |
 | SQLite | SQLx, biblioteca embutida. | `?1`, `?2` ou `?`. | Arquivo read-only e query_only=ON. |
@@ -68,8 +68,10 @@ erro de DML individual MySQL reporta `effect=unknown`, mesmo com ROLLBACK aceito
 ## Oracle
 
 O [oracledb](https://github.com/oracle/rust-oracledb) implementa o protocolo em
-Rust e não requer Instant Client, OCI ou ODPI-C. A versão pré-release está fixada
-no Cargo.toml. A URL continua usando host, porta e service name por TCP.
+Rust e dispensa Instant Client. A URL usa host, porta e service name por TCP.
+O Cargo.toml fixa o [commit da Oracle](https://github.com/oracle/rust-oracledb/commit/08554f3adc58322c40d36ffc77c8f5ffd53f9293)
+que acrescenta autenticação com verificadores de senha `11G`, além de `12C`.
+O driver recusa verificadores `10G`.
 
 O driver é síncrono e executa fora do executor async. Cancelar o future não
 interrompe imediatamente o I/O bloqueante. Escrita enviada sem

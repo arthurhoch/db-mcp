@@ -5,6 +5,7 @@ use std::{ffi::OsString, process::Stdio, time::Duration};
 
 use db_mcp::config::Engine;
 use serde_json::{Value, json};
+use sha1::{Digest, Sha1};
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     process::{ChildStdin, ChildStdout, Command},
@@ -185,6 +186,55 @@ async fn stdio_executes_mysql_bindings() {
 #[ignore = "Dedicated Oracle container; DB_MCP_INTEGRATION=1"]
 async fn stdio_executes_oracle_bindings_without_client_libraries() {
     stdio_contract(common::Fixture::network(Engine::Oracle)).await;
+}
+
+#[tokio::test]
+#[ignore = "Dedicated Oracle container; DB_MCP_INTEGRATION=1"]
+async fn stdio_connects_to_oracle_with_an_11g_only_password_verifier() {
+    let username = format!("DBMCP_11G_{}", uuid::Uuid::new_v4().simple()).to_uppercase();
+    let password = format!("TestAa1{}", uuid::Uuid::new_v4().simple());
+    let fixture = common::Fixture::oracle_with_user(&username, &password);
+    let config = oracledb::Config::default()
+        .set_credentials("system", "DisposableRoot123")
+        .set_connect_string("127.0.0.1:51521/FREEPDB1")
+        .unwrap();
+    let admin = oracledb::connect(config).unwrap();
+
+    // Oracle's 11G format is S: followed by SHA-1(password || salt) and the salt.
+    let salt = uuid::Uuid::new_v4();
+    let salt = &salt.as_bytes()[..10];
+    let mut hash = Sha1::new();
+    hash.update(password.as_bytes());
+    hash.update(salt);
+    let verifier: String = hash
+        .finalize()
+        .iter()
+        .chain(salt)
+        .map(|byte| format!("{byte:02X}"))
+        .collect();
+    admin
+        .execute(
+            &format!("CREATE USER {username} IDENTIFIED BY VALUES 'S:{verifier}'"),
+            &[],
+        )
+        .unwrap();
+    admin
+        .execute(&format!("GRANT CREATE SESSION TO {username}"), &[])
+        .unwrap();
+    let row = admin
+        .query_row(
+            "SELECT password_versions FROM dba_users WHERE username = :1",
+            &[&username],
+        )
+        .unwrap();
+    let password_versions: String = row.get(0).unwrap();
+    assert_eq!(password_versions.trim(), "11G");
+
+    stdio_contract(fixture).await;
+
+    admin
+        .execute(&format!("DROP USER {username}"), &[])
+        .unwrap();
 }
 
 #[tokio::test]

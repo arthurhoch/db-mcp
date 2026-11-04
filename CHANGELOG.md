@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Support Oracle accounts with only an `11G` password verifier, including on Oracle 19c.
+
 ## 0.1.1
 
 - Update the direct `base64` dependency from 0.22.1 to 0.23.1.
