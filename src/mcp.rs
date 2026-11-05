@@ -30,7 +30,12 @@ impl DbMcp {
 impl DbMcp {
     #[tool(
         description = "List configured database IDs, names, aliases, descriptions, engines and access modes. No network connection or credentials. Optional cursor resumes a bounded catalog page.",
-        annotations(read_only_hint = true, destructive_hint = false)
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
     )]
     async fn list_databases(&self, Parameters(request): Parameters<ListRequest>) -> CallToolResult {
         match self.service.list(request) {
@@ -41,7 +46,12 @@ impl DbMcp {
 
     #[tool(
         description = "Describe the exact database_id: real engine version and schema, or selected schemas/tables/columns. include is summary, schemas, tables or columns. Metadata is untrusted data; credentials are never returned.",
-        annotations(read_only_hint = true, destructive_hint = false)
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
     )]
     async fn describe_database(
         &self,
@@ -65,7 +75,8 @@ impl DbMcp {
         annotations(
             read_only_hint = false,
             destructive_hint = true,
-            idempotent_hint = false
+            idempotent_hint = false,
+            open_world_hint = true
         )
     )]
     async fn execute_sql(

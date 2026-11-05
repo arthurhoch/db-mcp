@@ -87,12 +87,20 @@ async fn stdio_contract(fixture: common::Fixture) {
     let tools = receive(&mut output, 2).await;
     let tools = tools["result"]["tools"].as_array().unwrap();
     assert_eq!(tools.len(), 3);
-    let execute = tools
-        .iter()
-        .find(|tool| tool["name"] == "execute_sql")
-        .unwrap();
-    assert_eq!(execute["annotations"]["readOnlyHint"], false);
-    assert_eq!(execute["annotations"]["destructiveHint"], true);
+    for name in ["list_databases", "describe_database", "execute_sql"] {
+        let tool = tools.iter().find(|tool| tool["name"] == name).unwrap();
+        let executes_sql = name == "execute_sql";
+        assert_eq!(
+            tool["annotations"],
+            json!({
+                "readOnlyHint": !executes_sql,
+                "destructiveHint": executes_sql,
+                "idempotentHint": !executes_sql,
+                "openWorldHint": executes_sql
+            }),
+            "{name}"
+        );
+    }
     send(&mut input,json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_databases","arguments":{}}})).await;
     let catalog = receive(&mut output, 3).await;
     assert!(catalog["result"]["structuredContent"]["databases"].is_array());
