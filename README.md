@@ -1,5 +1,7 @@
 # DB MCP
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/arthurhoch-db-mcp-10phce?v=01c9b4c4da3cb37b05ed9721bf76fa14)](https://m8ven.ai/mcp/arthurhoch-db-mcp-10phce?s=readme)
+
 An MCP server in Rust for querying and modifying data in Oracle, PostgreSQL,
 MySQL and SQLite. Each connection has a TOML file with its description,
 credentials and permissions. The agent selects a database by ID and executes
