@@ -9,8 +9,8 @@ services:
     ports: ["127.0.0.1:51433:1433"]
     volumes:
       - ./sql-server.conf:/var/opt/mssql/mssql.conf:ro
-      - "${DB_MCP_SQL_SERVER_TLS_DIR:?set a fixture directory}/server.crt:/etc/ssl/certs/db-mcp-test.crt:ro"
-      - "${DB_MCP_SQL_SERVER_TLS_DIR:?set a fixture directory}/server.key:/etc/ssl/private/db-mcp-test.key:ro"
+      - "${DB_MCP_SQL_SERVER_TLS_DIR:?set a fixture directory}/server.crt:/etc/db-mcp-test.crt:ro"
+      - "${DB_MCP_SQL_SERVER_TLS_DIR:?set a fixture directory}/server.key:/etc/db-mcp-test.key:ro"
     healthcheck:
       test: ["CMD-SHELL", "SQLCMDPASSWORD=\"$$MSSQL_SA_PASSWORD\" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -Q 'SELECT 1' >/dev/null"]
       interval: 3s
