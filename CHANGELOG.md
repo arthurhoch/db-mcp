@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Shorten the `execute_sql` tool description and keep database context instructions in the MCP server instructions.
+
 ## 0.2.0
 
 - Read Microsoft SQL Server over verified TLS with a SQL login.
