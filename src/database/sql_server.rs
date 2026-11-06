@@ -1,4 +1,7 @@
-use std::fmt::Display;
+use std::{
+    borrow::Cow,
+    fmt::{Display, Write},
+};
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Utc};
@@ -17,6 +20,7 @@ use crate::{
     config::DatabaseConfig,
     error::{AppError, Effect, ErrorCode, Result},
     model::{self, BoundValue, Column, OutputBudget, StatementResult},
+    policy::PreparedStatement,
 };
 
 pub async fn run(job: Job) -> Result<Outcome> {
@@ -39,8 +43,21 @@ pub async fn run(job: Job) -> Result<Outcome> {
     let mut budget = OutputBudget::new(&config.limits);
     let mut results = Vec::with_capacity(statements.len());
     for (index, statement) in statements.iter().enumerate() {
-        let mut query = Query::new(statement.sql.as_str());
         let result = async {
+            if explain {
+                let sql = plan_batch(statement)?;
+                progress.mark_sent();
+                let rows = connection.simple_query(sql).await.map_err(driver_error)?;
+                let plan = collect(rows, index, &mut budget).await?;
+                if plan.rows.is_empty() && !plan.truncated {
+                    return Err(AppError::new(
+                        ErrorCode::SqlError,
+                        "O SQL Server não retornou um plano estimado.",
+                    ));
+                }
+                return Ok(plan);
+            }
+            let mut query = Query::new(statement.sql.as_str());
             for value in &statement.parameters {
                 bind(&mut query, value)?;
             }
@@ -65,6 +82,37 @@ pub async fn run(job: Job) -> Result<Outcome> {
     Ok(Outcome {
         results,
         effect: Effect::None,
+    })
+}
+
+fn plan_batch(statement: &PreparedStatement) -> Result<String> {
+    // SHOWPLAN returns a plan for a SQL batch, not for Tiberius's sp_executesql RPC.
+    // Declare parameter types so the compiler can resolve placeholders without substituting values.
+    let mut sql = String::new();
+    for (index, parameter) in statement.parameters.iter().enumerate() {
+        let kind = parameter_type(parameter)?;
+        writeln!(sql, "DECLARE @P{} {kind};", index + 1)
+            .map_err(|_| AppError::invalid("Não foi possível preparar os parâmetros do plano."))?;
+    }
+    sql.push_str(&statement.sql);
+    Ok(sql)
+}
+
+fn parameter_type(value: &BoundValue) -> Result<Cow<'static, str>> {
+    Ok(match value {
+        BoundValue::Null | BoundValue::String(_) | BoundValue::Json(_) => "nvarchar(max)".into(),
+        BoundValue::Boolean(_) => "bit".into(),
+        BoundValue::Integer(_) => "bigint".into(),
+        BoundValue::Unsigned(_) => "numeric(20,0)".into(),
+        BoundValue::Decimal(value) => {
+            let number = decimal(value)?;
+            format!("numeric({},{})", number.precision(), number.scale()).into()
+        }
+        BoundValue::Float(_) => "float(53)".into(),
+        BoundValue::Date(_) => "date".into(),
+        BoundValue::Timestamp(_) => "datetime2".into(),
+        BoundValue::TimestampTz(_) => "datetimeoffset".into(),
+        BoundValue::Binary(_) => "varbinary(max)".into(),
     })
 }
 

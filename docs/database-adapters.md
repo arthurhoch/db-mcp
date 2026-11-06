@@ -28,7 +28,8 @@ decimais. Valores retornados seguem a precisão do tipo armazenado.
 ## Planos estimados
 
 PostgreSQL e MySQL usam `EXPLAIN`; SQLite usa `EXPLAIN QUERY PLAN`.
-SQL Server usa `SET SHOWPLAN_XML ON` em uma conexão exclusiva da chamada.
+SQL Server usa `SET SHOWPLAN_XML ON` em uma conexão exclusiva da chamada. O
+plano usa os tipos dos parâmetros, sem valores, na compilação.
 Oracle usa `EXPLAIN PLAN` em `SYS.PLAN_TABLE$`, uma tabela temporária, lê o
 resultado via `DBMS_XPLAN` e reverte a transação. A credencial precisa acessar
 essas interfaces do banco. Estatísticas reais de execução não fazem parte do plano.

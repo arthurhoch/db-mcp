@@ -169,7 +169,12 @@ async fn sql_server_contract() {
         )
         .await;
     assert_eq!(plan["plan_type"], "estimated", "{plan}");
-    assert!(plan["rows"][0][0].as_str().unwrap().contains("ShowPlanXML"));
+    assert!(
+        plan["rows"][0][0]
+            .as_str()
+            .is_some_and(|xml| xml.contains("ShowPlanXML")),
+        "{plan}"
+    );
     assert_eq!(plan["effect"], "none");
 
     let untrusted = execute(
