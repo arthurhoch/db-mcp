@@ -122,6 +122,14 @@ async fn sql_server_contract() {
     )
     .await;
     assert_eq!(decimal["rows"], json!([["-0.125"]]), "{decimal}");
+    let too_precise = execute(
+        &service,
+        json!({"database_id":"ro","sql":"SELECT @P1 AS n",
+               "parameters":[{"type":"decimal","value":"1e-38"}]}),
+    )
+    .await;
+    assert_eq!(too_precise["error"]["code"], "INVALID_ARGUMENT");
+    assert_eq!(too_precise["execution_state"], "not_started");
 
     let batch = execute(
         &service,

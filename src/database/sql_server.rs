@@ -238,7 +238,14 @@ fn decimal(value: &BigDecimal) -> Result<Numeric> {
         .to_string()
         .parse::<i128>()
         .map_err(|_| invalid())?;
-    Ok(Numeric::new_with_scale(coefficient, scale as u8))
+    let numeric = Numeric::new_with_scale(coefficient, scale as u8);
+    // The driver counts a zero integer part as one digit when encoding precision.
+    if numeric.precision() > 38 {
+        return Err(AppError::invalid(
+            "O driver SQL Server aceita até 37 casas decimais no parâmetro.",
+        ));
+    }
+    Ok(numeric)
 }
 
 fn validate_year(year: i32) -> Result<()> {

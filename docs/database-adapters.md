@@ -22,6 +22,8 @@ Use um login com `SELECT` apenas nos objetos necessários. O servidor MCP aceita
 somente `read_only` para esse banco e recusa referências diretas a outros bancos
 e a servidores vinculados. A validação TLS usa as CAs do sistema ou a CA PEM
 configurada. Não é preciso instalar ODBC.
+O driver aceita parâmetros decimais com até 38 dígitos de precisão e 37 casas
+decimais. Valores retornados seguem a precisão do tipo armazenado.
 
 ## Planos estimados
 
