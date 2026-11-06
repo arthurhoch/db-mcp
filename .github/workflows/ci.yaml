@@ -64,7 +64,6 @@ jobs:
       CARGO_BUILD_JOBS: "2"
       CARGO_PROFILE_DEV_DEBUG: "0"
       CARGO_PROFILE_TEST_DEBUG: "0"
-      DB_MCP_SQL_SERVER_TLS_DIR: ${{ runner.temp }}/db-mcp-sql-server
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,8 +74,10 @@ jobs:
           password="DbMcp-$(openssl rand -hex 18)!"
           echo "::add-mask::$password"
           echo "DB_MCP_SQL_SERVER_SA_PASSWORD=$password" >> "$GITHUB_ENV"
-          mkdir -p "$DB_MCP_SQL_SERVER_TLS_DIR"
-          cd "$DB_MCP_SQL_SERVER_TLS_DIR"
+          fixture_dir="$RUNNER_TEMP/db-mcp-sql-server"
+          echo "DB_MCP_SQL_SERVER_TLS_DIR=$fixture_dir" >> "$GITHUB_ENV"
+          mkdir -p "$fixture_dir"
+          cd "$fixture_dir"
           openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=DB MCP test CA' \
             -addext 'basicConstraints=critical,CA:TRUE' -keyout ca.key -out ca.crt
           openssl req -new -newkey rsa:2048 -nodes -subj '/CN=localhost' -keyout server.key -out server.csr
