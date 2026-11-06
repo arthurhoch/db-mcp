@@ -94,6 +94,12 @@ async fn stdio_contract(fixture: common::Fixture) {
         "explain_query",
     ] {
         let tool = tools.iter().find(|tool| tool["name"] == name).unwrap();
+        assert!(
+            tool["description"]
+                .as_str()
+                .is_some_and(|description| !description.trim().is_empty()),
+            "missing description for {name}"
+        );
         let executes_sql = name == "execute_sql";
         assert_eq!(
             tool["annotations"],
