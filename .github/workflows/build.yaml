@@ -71,7 +71,7 @@ jobs:
         run: |
           package="dist/db-mcp-$PLATFORM"
           mkdir -p "$package"
-          cp "$BINARY" README.md LICENSE "$package/"
+          cp "$BINARY" README.md LICENSE PRIVACY.md "$package/"
           cp -R docs/examples/config "$package/config-examples"
           cargo run --locked --example create_demo -- "$package/demo"
           "$BINARY" --version

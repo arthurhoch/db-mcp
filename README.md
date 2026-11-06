@@ -106,4 +106,4 @@ packages that commit internally prevent a guaranteed rollback of the whole batch
 
 [Configuration](docs/configuration.md) · [MCP contract](docs/mcp.md) ·
 [Databases](docs/database-adapters.md) · [Architecture](docs/architecture.md) ·
-[Testing](docs/testing.md) · [Skills](docs/skills.md)
+[Testing](docs/testing.md) · [Skills](docs/skills.md) · [Privacy policy](PRIVACY.md)
