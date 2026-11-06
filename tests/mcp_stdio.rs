@@ -86,8 +86,13 @@ async fn stdio_contract(fixture: common::Fixture) {
     .await;
     let tools = receive(&mut output, 2).await;
     let tools = tools["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 3);
-    for name in ["list_databases", "describe_database", "execute_sql"] {
+    assert_eq!(tools.len(), 4);
+    for name in [
+        "list_databases",
+        "describe_database",
+        "execute_sql",
+        "explain_query",
+    ] {
         let tool = tools.iter().find(|tool| tool["name"] == name).unwrap();
         let executes_sql = name == "execute_sql";
         assert_eq!(
@@ -133,6 +138,7 @@ async fn stdio_contract(fixture: common::Fixture) {
         Engine::Oracle => "SELECT :1 AS answer FROM dual",
         Engine::Postgresql => "SELECT $1 AS answer",
         Engine::Mysql | Engine::Sqlite => "SELECT ? AS answer",
+        Engine::SqlServer => "SELECT @P1 AS answer",
     };
     send(
         &mut input,
@@ -164,6 +170,31 @@ async fn stdio_contract(fixture: common::Fixture) {
     assert_eq!(
         denied["result"]["structuredContent"]["error"]["code"],
         "READ_ONLY_VIOLATION"
+    );
+    send(
+        &mut input,
+        json!({
+            "jsonrpc":"2.0", "id":7, "method":"tools/call",
+            "params": {
+                "name":"explain_query",
+                "arguments":{"database_id":"ro","sql":sql,
+                             "parameters":[{"type":"integer","value":"42"}]}
+            }
+        }),
+    )
+    .await;
+    let plan = receive(&mut output, 7).await;
+    let plan = &plan["result"]["structuredContent"];
+    assert_eq!(plan["plan_type"], "estimated", "{plan}");
+    assert_eq!(plan["effect"], "none");
+    assert!(plan["returned_rows"].as_u64().unwrap() > 0);
+
+    send(&mut input,json!({"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"explain_query","arguments":{"database_id":"ddl","sql":"DELETE FROM protected_data"}}})).await;
+    let denied = receive(&mut output, 8).await;
+    assert_eq!(denied["result"]["isError"], true);
+    assert_eq!(
+        denied["result"]["structuredContent"]["execution_state"],
+        "not_started"
     );
     drop(input);
     let status = tokio::time::timeout(Duration::from_secs(10), child.wait())

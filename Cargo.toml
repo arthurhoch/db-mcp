@@ -1,9 +1,9 @@
 [package]
 name = "db-mcp"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.99"
-description = "Local MCP server for Oracle, PostgreSQL, MySQL and SQLite"
+description = "Local MCP server for Oracle, PostgreSQL, MySQL, SQLite and SQL Server"
 license = "MIT"
 repository = "https://github.com/arthurhoch/db-mcp"
 readme = "README.md"
@@ -24,8 +24,9 @@ serde_json = "1"
 sqlparser = { version = "0.63", features = ["visitor"] }
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-native-roots", "postgres", "mysql", "sqlite", "chrono", "json", "bigdecimal", "uuid"] }
 thiserror = "2"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std", "io-util", "net", "signal", "sync", "time", "process"] }
-tokio-util = "0.7"
+tiberius = { version = "0.13", default-features = false, features = ["tds80", "rustls", "chrono", "bigdecimal"] }
+tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "io-std", "io-util", "net", "signal", "sync", "time", "process"] }
+tokio-util = { version = "0.7", features = ["compat"] }
 toml = "1.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

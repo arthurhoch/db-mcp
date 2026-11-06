@@ -1,8 +1,8 @@
 # Releases
 
 Pushes and pull requests run formatting, Clippy, tests and release builds on
-macOS, Linux and Windows, for x64 and ARM64. A separate Linux ARM64 job runs all
-four database suites against disposable containers. CI artifacts are available
+macOS, Linux and Windows, for x64 and ARM64. Linux ARM64 tests PostgreSQL, MySQL,
+Oracle and SQLite. Linux x64 tests SQL Server 2022. CI artifacts are available
 for 14 days from the workflow run.
 
 Security checks include RustSec dependency auditing, CodeQL for Rust and Actions,

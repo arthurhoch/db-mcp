@@ -1,0 +1,14 @@
+config_version = 1
+id = "relatorios-sql-server"
+name = "Relatórios SQL Server"
+aliases = ["relatorios mssql"]
+description = "Base de relatórios para consultas."
+engine = "sql_server"
+access_mode = "read_only"
+default_schema = "dbo"
+
+[connection]
+url = "sqlserver://mssql.example.invalid:1433/Reporting"
+username = "report_reader"
+password_env = "REPORTING_SQL_SERVER_PASSWORD"
+# tls_ca_file = "../certs/reporting-ca.pem"

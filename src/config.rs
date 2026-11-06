@@ -17,6 +17,7 @@ pub enum Engine {
     Postgresql,
     Mysql,
     Sqlite,
+    SqlServer,
 }
 
 impl Engine {
@@ -26,6 +27,7 @@ impl Engine {
             Self::Postgresql => "postgresql",
             Self::Mysql => "mysql",
             Self::Sqlite => "sqlite",
+            Self::SqlServer => "sql_server",
         }
     }
 }
@@ -159,6 +161,7 @@ struct ConnectionFile {
     username_env: Option<String>,
     password: Option<String>,
     password_env: Option<String>,
+    tls_ca_file: Option<PathBuf>,
 }
 
 impl fmt::Debug for ConnectionFile {
@@ -188,6 +191,7 @@ pub struct DatabaseConfig {
     pub username: Option<Secret>,
     pub password: Option<Secret>,
     pub sqlite_path: Option<PathBuf>,
+    pub tls_ca_file: Option<PathBuf>,
     pub limits: ExecutionLimits,
 }
 
@@ -358,7 +362,12 @@ fn resolve_database(
         network,
     )?;
     let address = Url::parse(url.expose()).map_err(|_| config_error("URL de conexão inválida."))?;
-    if address.scheme() != file.engine.as_str()
+    let scheme = if file.engine == Engine::SqlServer {
+        "sqlserver"
+    } else {
+        file.engine.as_str()
+    };
+    if address.scheme() != scheme
         || !address.username().is_empty()
         || address.password().is_some()
         || address.fragment().is_some()
@@ -369,6 +378,27 @@ fn resolve_database(
             "URL incompatível: use o scheme do engine, credenciais separadas e nenhum parâmetro livre.",
         ));
     }
+    if file.engine == Engine::SqlServer && file.access_mode != AccessMode::ReadOnly {
+        return Err(config_error(
+            "SQL Server aceita somente access_mode=read_only.",
+        ));
+    }
+    let tls_ca_file = match file.connection.tls_ca_file {
+        Some(file_path) if file.engine == Engine::SqlServer => {
+            let file_path = path
+                .parent()
+                .unwrap_or_else(|| Path::new("."))
+                .join(file_path);
+            if !file_path.is_file() {
+                return Err(config_error(
+                    "O certificado CA do SQL Server precisa existir.",
+                ));
+            }
+            Some(file_path)
+        }
+        Some(_) => return Err(config_error("tls_ca_file é aceito somente em SQL Server.")),
+        None => None,
+    };
     if file.engine == Engine::Sqlite
         && file
             .default_schema
@@ -479,6 +509,7 @@ fn resolve_database(
         username,
         password,
         sqlite_path,
+        tls_ca_file,
         limits,
     })
 }

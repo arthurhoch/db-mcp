@@ -13,7 +13,7 @@ use crate::{
     config::AccessMode,
     error::{AppError, Effect, ErrorCode, Result},
     model::{self, BoundValue, Column, OutputBudget, StatementResult},
-    policy::StatementKind,
+    policy::{PreparedStatement, StatementKind},
 };
 
 pub async fn run(job: Job) -> Result<Outcome> {
@@ -32,8 +32,9 @@ pub async fn run(job: Job) -> Result<Outcome> {
 fn run_blocking(job: Job) -> Result<Outcome> {
     let Job {
         config,
-        statements,
+        mut statements,
         batch,
+        explain,
         progress,
         permits,
     } = job;
@@ -44,6 +45,23 @@ fn run_blocking(job: Job) -> Result<Outcome> {
             ErrorCode::ConfigInvalid,
             "Remova RSO_DEBUG_PACKETS do ambiente para usar Oracle pelo MCP.",
         ));
+    }
+    if explain {
+        let plan_id = uuid::Uuid::new_v4().simple().to_string();
+        let plan_id = &plan_id[..30];
+        let statement = statements
+            .first_mut()
+            .ok_or_else(|| AppError::invalid("Consulta ausente."))?;
+        statement.sql.insert_str(
+            0,
+            &format!("EXPLAIN PLAN SET STATEMENT_ID = '{plan_id}' INTO SYS.PLAN_TABLE$ FOR "),
+        );
+        statements.push(PreparedStatement {
+            sql: "SELECT plan_table_output FROM TABLE(SYS.DBMS_XPLAN.DISPLAY('SYS.PLAN_TABLE$', :1, 'TYPICAL'))".into(),
+            parameters: vec![BoundValue::String(plan_id.into())],
+            kind: StatementKind::Read,
+            relations: Default::default(),
+        });
     }
     let mut bindings = Vec::with_capacity(statements.len());
     for (index, statement) in statements.iter().enumerate() {
@@ -127,7 +145,8 @@ fn run_blocking(job: Job) -> Result<Outcome> {
     }
     let writes = statements.iter().any(|s| s.kind != StatementKind::Read);
     let ddl = statements.iter().any(|s| s.kind == StatementKind::Ddl);
-    if !writes || config.access_mode == AccessMode::ReadOnly {
+    // EXPLAIN writes only to Oracle's session-private plan table, then rolls back.
+    if !explain && (!writes || config.access_mode == AccessMode::ReadOnly) {
         connection
             .execute("SET TRANSACTION READ ONLY", &[])
             .map_err(driver_error)?;
@@ -209,6 +228,11 @@ fn run_blocking(job: Job) -> Result<Outcome> {
             Ok(result)
         })();
         match operation {
+            Ok(_) if explain && index == 0 => {}
+            Ok(mut result) if explain => {
+                result.statement_index = 0;
+                results.push(result);
+            }
             Ok(result) => results.push(result),
             Err(mut error) => {
                 error.failed_statement_index = Some(index);

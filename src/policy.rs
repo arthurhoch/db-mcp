@@ -3,9 +3,11 @@ use std::{collections::BTreeSet, ops::ControlFlow};
 use sqlparser::{
     ast::{
         ContextModifier, Expr, Function, FunctionArg, FunctionArgExpr, FunctionArguments,
-        ObjectType, Query, Select, Set, Statement, Value, Visit, Visitor,
+        ObjectType, Query, Select, Set, Statement, TableFactor, Value, Visit, Visitor,
     },
-    dialect::{Dialect, GenericDialect, MySqlDialect, PostgreSqlDialect, SQLiteDialect},
+    dialect::{
+        Dialect, GenericDialect, MsSqlDialect, MySqlDialect, PostgreSqlDialect, SQLiteDialect,
+    },
     parser::Parser,
 };
 
@@ -35,15 +37,10 @@ pub fn prepare(
     statements: Vec<SqlStatement>,
     batch: bool,
 ) -> Result<Vec<PreparedStatement>> {
-    let dialect: Box<dyn Dialect> = match config.engine {
-        Engine::Postgresql => Box::new(PostgreSqlDialect {}),
-        Engine::Mysql => Box::new(MySqlDialect {}),
-        Engine::Sqlite => Box::new(SQLiteDialect {}),
-        Engine::Oracle => Box::new(GenericDialect {}),
-    };
+    let dialect = dialect(config.engine);
     let mut prepared = Vec::with_capacity(statements.len());
     for (index, statement) in statements.into_iter().enumerate() {
-        let result = prepare_one(&*dialect, config, statement, batch);
+        let result = prepare_one(&*dialect, config, statement, batch, false);
         match result {
             Ok(statement) => prepared.push(statement),
             Err(mut error) => {
@@ -55,11 +52,29 @@ pub fn prepare(
     Ok(prepared)
 }
 
+pub fn prepare_estimated_plan(
+    config: &DatabaseConfig,
+    statement: SqlStatement,
+) -> Result<PreparedStatement> {
+    prepare_one(&*dialect(config.engine), config, statement, false, true)
+}
+
+fn dialect(engine: Engine) -> Box<dyn Dialect> {
+    match engine {
+        Engine::Postgresql => Box::new(PostgreSqlDialect {}),
+        Engine::Mysql => Box::new(MySqlDialect {}),
+        Engine::Sqlite => Box::new(SQLiteDialect {}),
+        Engine::Oracle => Box::new(GenericDialect {}),
+        Engine::SqlServer => Box::new(MsSqlDialect {}),
+    }
+}
+
 fn prepare_one(
     dialect: &dyn Dialect,
     config: &DatabaseConfig,
     input: SqlStatement,
     batch: bool,
+    explain: bool,
 ) -> Result<PreparedStatement> {
     // MySQL executes versioned comments that a generic SQL parser may ignore.
     let upper = input.sql.to_uppercase();
@@ -78,15 +93,26 @@ fn prepare_one(
             "Cada item precisa conter exatamente um statement SQL.",
         ));
     }
+    if explain && !matches!(statements[0], Statement::Query(_)) {
+        return Err(AppError::unsupported(
+            "Plano estimado exige uma consulta de leitura.",
+        ));
+    }
     let mut guard = SqlGuard {
         engine: config.engine,
         mode: config.access_mode,
         batch,
+        explain,
         kind: StatementKind::Read,
         relations: BTreeSet::new(),
     };
     if let ControlFlow::Break(error) = statements[0].visit(&mut guard) {
         return Err(error);
+    }
+    if explain && guard.kind != StatementKind::Read {
+        return Err(AppError::unsupported(
+            "Plano estimado exige uma consulta de leitura.",
+        ));
     }
     if batch && guard.kind == StatementKind::Ddl {
         return Err(AppError::new(
@@ -111,6 +137,7 @@ struct SqlGuard {
     engine: Engine,
     mode: AccessMode,
     batch: bool,
+    explain: bool,
     kind: StatementKind,
     relations: BTreeSet<String>,
 }
@@ -197,12 +224,35 @@ impl Visitor for SqlGuard {
         relation: &sqlparser::ast::ObjectName,
     ) -> ControlFlow<Self::Break> {
         let name = relation.to_string();
-        if name.contains('@') {
+        if name.contains('@') || (self.engine == Engine::SqlServer && relation.0.len() > 2) {
             return ControlFlow::Break(AppError::unsupported(
                 "Links remotos de banco não são oferecidos.",
             ));
         }
         self.relations.insert(name);
+        ControlFlow::Continue(())
+    }
+
+    fn pre_visit_table_factor(&mut self, table: &TableFactor) -> ControlFlow<Self::Break> {
+        if self.engine == Engine::SqlServer
+            && matches!(table, TableFactor::Table { with_hints, .. } if !with_hints.is_empty())
+        {
+            return ControlFlow::Break(AppError::unsupported(
+                "Table hints não são oferecidos no SQL Server.",
+            ));
+        }
+        if (self.engine == Engine::SqlServer || self.explain)
+            && matches!(
+                table,
+                TableFactor::Table { args: Some(_), .. }
+                    | TableFactor::TableFunction { .. }
+                    | TableFactor::Function { .. }
+            )
+        {
+            return ControlFlow::Break(AppError::unsupported(
+                "Funções usadas como tabelas não são oferecidas nesta operação.",
+            ));
+        }
         ControlFlow::Continue(())
     }
 
@@ -216,6 +266,11 @@ impl Visitor for SqlGuard {
             let qualified = name.contains('.') && !name.starts_with("pg_catalog.");
             let name = name.rsplit('.').next().unwrap_or(&name);
             if name == "set_config" {
+                if self.explain {
+                    return ControlFlow::Break(AppError::unsupported(
+                        "Plano estimado não aceita configuração de contexto.",
+                    ));
+                }
                 return if self.engine == Engine::Postgresql && is_local_context(function) {
                     ControlFlow::Continue(())
                 } else {
@@ -224,7 +279,7 @@ impl Visitor for SqlGuard {
                     ))
                 };
             }
-            if self.batch
+            if (self.batch || self.explain)
                 && (qualified
                     || ![
                         "count",
@@ -257,9 +312,14 @@ impl Visitor for SqlGuard {
                     ]
                     .contains(&name))
             {
+                if self.explain {
+                    return ControlFlow::Break(AppError::unsupported(
+                        "Função fora da lista de funções de leitura permitidas em planos estimados.",
+                    ));
+                }
                 return ControlFlow::Break(AppError::new(
                     ErrorCode::BatchNotAtomic,
-                    "Função fora da lista de funções puras verificadas para lote; execute individualmente se permitido.",
+                    "Função fora da lista de funções de leitura permitidas em lote.",
                 ));
             }
             if [

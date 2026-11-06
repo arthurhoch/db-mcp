@@ -147,12 +147,21 @@ macro_rules! runner {
             pub async fn run(job: Job) -> Result<Outcome> {
                 let Job {
                     config,
-                    statements,
+                    mut statements,
                     batch,
+                    explain,
                     progress,
                     permits,
                 } = job;
                 let _permits = permits;
+                if explain && let Some(statement) = statements.first_mut() {
+                    let prefix = match config.engine {
+                        Engine::Postgresql | Engine::Mysql => "EXPLAIN ",
+                        Engine::Sqlite => "EXPLAIN QUERY PLAN ",
+                        _ => return Err(AppError::unsupported("Plano indisponível neste adaptador.")),
+                    };
+                    statement.sql.insert_str(0, prefix);
+                }
                 let mut connection = $connect(&config).await?;
                 let writes = statements.iter().any(|s| s.kind != StatementKind::Read);
                 let implicit_ddl = config.engine == Engine::Mysql

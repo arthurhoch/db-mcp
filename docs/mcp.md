@@ -1,6 +1,6 @@
 # Ferramentas MCP
 
-O servidor usa STDIO e publica três ferramentas. Credenciais, URL e modo de
+O servidor usa STDIO e publica quatro ferramentas. Credenciais, URL e modo de
 acesso vêm da configuração, nunca dos argumentos de uma chamada.
 
 O agente lista conexões, resolve o destino indicado pelo usuário e consulta os
@@ -47,10 +47,29 @@ As páginas seguem a ordem de ID e os limites de linhas/bytes globais. Quando
 | `schemas` | Schemas acessíveis. |
 | `tables` | Tabelas/views; aceita `schema`. |
 | `columns` | Colunas; exige `table` e aceita `schema`. |
+| `indexes` | Colunas de índice, ordem e unicidade; exige `table` e aceita `schema`. |
+| `constraints` | Chaves e checks expostos pelo banco, com referências de chaves estrangeiras; exige `table` e aceita `schema`. |
 
 Listagens têm `columns`, `rows`, `returned_rows`, `truncated` e `limit_reason`.
 Filtros de metadados usam bindings. Objetos invisíveis à credencial podem não
 aparecer; isso não comprova que não existem.
+
+## explain_query
+
+Envia uma consulta de leitura para o otimizador, sem executar a consulta. Usa
+os mesmos limites e parâmetros de `execute_sql`, para um único statement.
+
+```json
+{
+  "database_id": "vendas-hml",
+  "sql": "SELECT id FROM pedidos WHERE id = $1",
+  "parameters": [{"type":"integer","value":"123"}]
+}
+```
+
+Retorna `plan_type: "estimated"` com o resultado nativo em `columns` e `rows`.
+Não aceita DML, DDL, lotes ou `EXPLAIN ANALYZE`. O SQL Server exige a permissão
+`SHOWPLAN`. Veja [planos por banco](database-adapters.md#planos-estimados).
 
 ## execute_sql
 
