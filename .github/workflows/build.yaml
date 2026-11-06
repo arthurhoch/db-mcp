@@ -76,6 +76,7 @@ jobs:
           cargo run --locked --example create_demo -- "$package/demo"
           "$BINARY" --version
           "$BINARY" --config "$package/demo/config/global.toml" --check-config
+          "$BINARY" --config "$package/demo/config/global.toml" --test-connection demo-ro
           if [[ "$RUNNER_OS" == Windows ]]; then
             export PACKAGE_DIR="$package"
             export ARCHIVE_PATH="$package.zip"

@@ -3,9 +3,9 @@
 [![M8ven Score](https://m8ven.ai/badge/mcp/arthurhoch-db-mcp-10phce?v=01c9b4c4da3cb37b05ed9721bf76fa14)](https://m8ven.ai/mcp/arthurhoch-db-mcp-10phce?s=readme)
 
 An MCP server in Rust for querying and modifying data in Oracle, PostgreSQL,
-MySQL and SQLite. Each connection has a TOML file with its description,
-credentials and permissions. The agent selects a database by ID and executes
-SQL in its native dialect.
+MySQL and SQLite, and for querying Microsoft SQL Server. Each connection has a
+TOML file with its description, credentials and permissions. The agent selects a
+database by ID and executes SQL in its native dialect.
 
 ## Download and run
 
@@ -57,6 +57,7 @@ that connects directly without installing Instant Client or Oracle libraries.
 ```sh
 cargo run --locked --example create_demo
 target/release/db-mcp --config .runtime/demo/config/global.toml --check-config
+target/release/db-mcp --config .runtime/demo/config/global.toml --test-connection demo-ro
 ```
 
 Downloaded packages already include the demo. The Rust example creates sample
@@ -87,14 +88,19 @@ The transport is STDIO. The process uses the catalog from the global configurati
 file, with no separate MCP login. Credential environment variables must be available
 to the process. Other MCP clients have their own configuration formats.
 
-Available tools: `list_databases`, `describe_database` and `execute_sql`.
-Example request: “In demo-ro, list the pending orders.”
+Example request: “In demo-ro, list the pending orders.” The agent uses
+`list_databases` to find the connection, `describe_database` to inspect tables,
+columns, indexes or constraints, and `execute_sql` to run SQL. `explain_query`
+returns an estimated plan without running the query.
 
 | Connection mode | Operations |
 | --- | --- |
 | `read_only` | Read queries. |
 | `read_write` | Read queries, INSERT, UPDATE and DELETE. |
 | `read_write_ddl` | Also supported CREATE, ALTER and DROP statements. |
+
+SQL Server supports `read_only` with verified TLS. See the
+[SQL Server configuration example](docs/examples/config/databases/relatorios-sql-server.toml).
 
 Batches use one transaction per call. DDL statements run individually. The server
 reports truncated results and unknown effects; it does not retry SQL automatically.

@@ -37,6 +37,7 @@ impl Fixture {
             ),
             Engine::Oracle => ("oracle://127.0.0.1:51521/FREEPDB1", "DisposableTest123"),
             Engine::Sqlite => panic!("Use Fixture::sqlite"),
+            Engine::SqlServer => panic!("Use the SQL Server integration fixture"),
         };
         Self::create(
             tempfile::tempdir().unwrap(),
@@ -113,6 +114,7 @@ impl Fixture {
             Engine::Oracle => format!(":{index}"),
             Engine::Mysql => "?".into(),
             Engine::Sqlite => format!("?{index}"),
+            Engine::SqlServer => format!("@P{index}"),
         }
     }
 }

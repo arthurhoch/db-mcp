@@ -9,10 +9,10 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    config::{Catalog, DatabaseConfig},
+    config::{Catalog, DatabaseConfig, Engine},
     database::{self, Job, Outcome, Progress},
     error::{AppError, Effect, ErrorCode, ExecutionState, Result},
-    model::{DescribeRequest, ExecuteRequest, ListRequest, MetadataKind},
+    model::{DescribeRequest, ExecuteRequest, ExplainRequest, ListRequest, MetadataKind},
     policy::{self, PreparedStatement, StatementKind},
 };
 
@@ -96,6 +96,29 @@ impl ExecutionService {
     }
 
     pub async fn execute(&self, request: ExecuteRequest, cancellation: CancellationToken) -> Value {
+        self.execute_request(request, false, cancellation).await
+    }
+
+    pub async fn explain(&self, request: ExplainRequest, cancellation: CancellationToken) -> Value {
+        self.execute_request(
+            ExecuteRequest {
+                database_id: request.database_id,
+                sql: Some(request.sql),
+                parameters: request.parameters,
+                statements: None,
+            },
+            true,
+            cancellation,
+        )
+        .await
+    }
+
+    async fn execute_request(
+        &self,
+        request: ExecuteRequest,
+        explain: bool,
+        cancellation: CancellationToken,
+    ) -> Value {
         let id = request.database_id.clone();
         let request_id = uuid::Uuid::new_v4().to_string();
         let started = Instant::now();
@@ -106,17 +129,30 @@ impl ExecutionService {
         let result = request
             .into_statements(&config.limits)
             .and_then(|(statements, batch)| {
-                policy::prepare(&config, statements, batch).map(|plans| (plans, batch))
+                let plans = if explain {
+                    statements
+                        .into_iter()
+                        .map(|statement| policy::prepare_estimated_plan(&config, statement))
+                        .collect()
+                } else {
+                    policy::prepare(&config, statements, batch)
+                }?;
+                Ok((plans, batch))
             });
         let (plans, batch) = match result {
             Ok(prepared) => prepared,
             Err(error) => return error_report(&request_id, &id, error, started),
         };
-        let outcome = self.run(config.clone(), plans, batch, cancellation).await;
+        let outcome = self
+            .run(config.clone(), plans, batch, explain, cancellation)
+            .await;
         let mut report = match outcome {
             Ok(outcome) => outcome_report(&request_id, &config, outcome, batch, started),
             Err(error) => error_report(&request_id, &id, error, started),
         };
+        if explain && report.get("error").is_none() {
+            report["plan_type"] = json!("estimated");
+        }
         if serde_json::to_vec(&report)
             .map_or(true, |bytes| bytes.len() > config.limits.max_result_bytes)
         {
@@ -152,7 +188,7 @@ impl ExecutionService {
         let config = self.catalog.database(&request.database_id)?;
         let statement = database::metadata::statement(&config, &request)?;
         let outcome = self
-            .run(config.clone(), vec![statement], false, cancellation)
+            .run(config.clone(), vec![statement], false, false, cancellation)
             .await?;
         let result =
             outcome.results.into_iter().next().ok_or_else(|| {
@@ -174,11 +210,12 @@ impl ExecutionService {
                 "capabilities": {
                     "single_statement": true,
                     "transactional_batch": true,
-                    "ddl_mode": "read_write_ddl",
+                    "ddl_mode": if config.engine == Engine::SqlServer { None } else { Some("read_write_ddl") },
                     "ddl_in_batch": false,
                     "transaction_across_calls": false,
                     "native_placeholders": true,
-                    "untrusted_database_content": true
+                    "untrusted_database_content": true,
+                    "estimated_query_plan": true
                 }
             })
         } else {
@@ -208,6 +245,7 @@ impl ExecutionService {
         config: Arc<DatabaseConfig>,
         statements: Vec<PreparedStatement>,
         batch: bool,
+        explain: bool,
         cancellation: CancellationToken,
     ) -> Result<Outcome> {
         let admission = async {
@@ -241,6 +279,7 @@ impl ExecutionService {
             config,
             statements,
             batch,
+            explain,
             progress: progress.clone(),
             permits,
         };

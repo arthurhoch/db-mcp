@@ -18,7 +18,7 @@ Os testes ignorados exigem os bancos descartáveis de
 
 ```sh
 docker compose -p db-mcp-validation -f tests/compose.yaml up -d --wait
-DB_MCP_INTEGRATION=1 cargo test --all-targets --locked -- --include-ignored --test-threads=1
+DB_MCP_INTEGRATION=1 cargo test --all-targets --locked -- --include-ignored --test-threads=1 --skip sql_server_contract
 docker compose -p db-mcp-validation -f tests/compose.yaml down -v
 ```
 
@@ -35,6 +35,10 @@ Os testes de contexto usam RLS real no PostgreSQL, com usuário sem bypass, e
 VPD com pacote Oracle. Verificam contexto compartilhado entre statements,
 isolamento entre chamadas, escrita filtrada, rollback, falha na preparação e
 efeito desconhecido quando um pacote confirma a transação internamente.
+
+O job `SQL Server tests` usa o [container oficial do SQL Server 2022](../tests/compose-sql-server.yaml)
+em Linux x64, com credenciais descartáveis e uma CA de teste. Verifica conexão
+TLS, permissões, bindings, metadados, lotes de leitura e plano estimado.
 
 ## Ambientes verificados em 2026-11-04
 

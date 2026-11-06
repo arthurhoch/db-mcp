@@ -126,7 +126,7 @@ async fn database_contract(fixture: common::Fixture) {
                 database_id: "ro".into(),
                 include: MetadataKind::Columns,
                 schema: None,
-                table: Some(table_name),
+                table: Some(table_name.clone()),
             },
             CancellationToken::new(),
         )
@@ -134,6 +134,30 @@ async fn database_contract(fixture: common::Fixture) {
         .unwrap();
     assert_eq!(columns["returned_rows"], 2, "{columns}");
     assert_eq!(columns["truncated"], true);
+
+    for (include, column_offset) in [(MetadataKind::Indexes, 1), (MetadataKind::Constraints, 2)] {
+        let metadata = service
+            .describe(
+                DescribeRequest {
+                    database_id: "ro".into(),
+                    include,
+                    schema: None,
+                    table: Some(table_name.clone()),
+                },
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        let rows = metadata["rows"].as_array().unwrap();
+        assert!(
+            rows.iter().any(|row| {
+                row[column_offset]
+                    .as_str()
+                    .is_some_and(|name| name.eq_ignore_ascii_case("id"))
+            }),
+            "{metadata}"
+        );
+    }
 
     let update = common::execute(
         &service,

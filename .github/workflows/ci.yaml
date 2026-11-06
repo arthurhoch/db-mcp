@@ -48,7 +48,7 @@ jobs:
       - name: Start disposable databases
         run: docker compose -p db-mcp-ci -f tests/compose.yaml up -d --wait --wait-timeout 600
       - name: Test all four databases
-        run: cargo test --all-targets --locked -- --include-ignored --test-threads=1
+        run: cargo test --all-targets --locked -- --include-ignored --test-threads=1 --skip sql_server_contract
       - name: Database logs on failure
         if: failure()
         run: docker compose -p db-mcp-ci -f tests/compose.yaml logs --no-color --tail 100
@@ -56,10 +56,50 @@ jobs:
         if: always()
         run: docker compose -p db-mcp-ci -f tests/compose.yaml down -v
 
+  sql-server:
+    name: SQL Server tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create disposable SQL Server credentials and certificates
+        run: |
+          umask 077
+          password="DbMcp-$(openssl rand -hex 18)!"
+          echo "::add-mask::$password"
+          echo "DB_MCP_SQL_SERVER_SA_PASSWORD=$password" >> "$GITHUB_ENV"
+          fixture_dir="$RUNNER_TEMP/db-mcp-sql-server"
+          echo "DB_MCP_SQL_SERVER_TLS_DIR=$fixture_dir" >> "$GITHUB_ENV"
+          mkdir -p "$fixture_dir"
+          cd "$fixture_dir"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=DB MCP test CA' \
+            -addext 'basicConstraints=critical,CA:TRUE' -keyout ca.key -out ca.crt
+          openssl req -new -newkey rsa:2048 -nodes -subj '/CN=localhost' -keyout server.key -out server.csr
+          echo 'subjectAltName=DNS:localhost,IP:127.0.0.1' > server.ext
+          openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
+            -days 1 -extfile server.ext -out server.crt
+          sudo chown 10001:0 server.crt server.key
+      - name: Start SQL Server 2022
+        run: docker compose -p db-mcp-sql-ci -f tests/compose-sql-server.yaml up -d --wait --wait-timeout 300
+      - name: Test SQL Server over TLS
+        run: cargo test --locked --test sql_server -- --ignored
+      - name: SQL Server logs on failure
+        if: failure()
+        run: docker compose -p db-mcp-sql-ci -f tests/compose-sql-server.yaml logs --no-color --tail 100
+      - name: Remove disposable SQL Server
+        if: always()
+        run: docker compose -p db-mcp-sql-ci -f tests/compose-sql-server.yaml down -v
+
   passed:
     name: CI passed
     if: always()
-    needs: [build, security, integration]
+    needs: [build, security, integration, sql-server]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -68,7 +108,9 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           SECURITY_RESULT: ${{ needs.security.result }}
           INTEGRATION_RESULT: ${{ needs.integration.result }}
+          SQL_SERVER_RESULT: ${{ needs.sql-server.result }}
         run: |
           test "$BUILD_RESULT" = success
           test "$SECURITY_RESULT" = success
           test "$INTEGRATION_RESULT" = success
+          test "$SQL_SERVER_RESULT" = success

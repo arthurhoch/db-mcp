@@ -14,6 +14,7 @@ use crate::{
 
 pub mod metadata;
 mod oracle;
+mod sql_server;
 mod sqlx;
 
 #[derive(Default)]
@@ -33,6 +34,7 @@ pub struct Job {
     pub config: Arc<DatabaseConfig>,
     pub statements: Vec<PreparedStatement>,
     pub batch: bool,
+    pub explain: bool,
     pub progress: Arc<Progress>,
     pub permits: Vec<OwnedSemaphorePermit>,
 }
@@ -48,6 +50,7 @@ pub async fn run(job: Job) -> Result<Outcome> {
         Engine::Mysql => sqlx::mysql::run(job).await,
         Engine::Sqlite => sqlx::sqlite::run(job).await,
         Engine::Oracle => oracle::run(job).await,
+        Engine::SqlServer => sql_server::run(job).await,
     }
 }
 

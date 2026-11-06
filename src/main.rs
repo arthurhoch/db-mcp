@@ -1,13 +1,14 @@
 use std::{path::PathBuf, process::ExitCode};
 
 use clap::Parser;
+use db_mcp::model::{DescribeRequest, MetadataKind};
 use db_mcp::{config::Catalog, execution::ExecutionService, mcp::DbMcp};
 use rmcp::{ServiceExt, transport::async_rw::AsyncRwTransport};
 
 #[derive(Parser)]
 #[command(
     version,
-    about = "Local MCP server for Oracle, PostgreSQL, MySQL and SQLite"
+    about = "Local MCP server for Oracle, PostgreSQL, MySQL, SQLite and SQL Server"
 )]
 struct Cli {
     /// Global TOML configuration. Relative database paths resolve against this file.
@@ -16,6 +17,9 @@ struct Cli {
     /// Validate the complete configuration without connecting or starting MCP.
     #[arg(long)]
     check_config: bool,
+    /// Connect to one configured database and read its server version.
+    #[arg(long, value_name = "DATABASE_ID", conflicts_with = "check_config")]
+    test_connection: Option<String>,
 }
 
 #[tokio::main]
@@ -46,6 +50,23 @@ async fn run() -> std::result::Result<(), String> {
             "Configuração válida: {} conexão(ões). Nenhum banco foi conectado.",
             catalog.databases.len()
         );
+        return Ok(());
+    }
+    if let Some(database_id) = cli.test_connection {
+        let request = DescribeRequest {
+            database_id: database_id.clone(),
+            include: MetadataKind::Summary,
+            schema: None,
+            table: None,
+        };
+        ExecutionService::new(catalog)
+            .describe(request, tokio_util::sync::CancellationToken::new())
+            .await
+            .map_err(|error| match error.database_code.as_deref() {
+                Some(code) => format!("{} (database_code={code})", error.message),
+                None => error.to_string(),
+            })?;
+        println!("Conexão válida: {database_id}.");
         return Ok(());
     }
     let max_line = catalog

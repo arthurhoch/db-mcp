@@ -25,7 +25,12 @@ conexão são recusados.
 
 ```sh
 db-mcp --config /caminho/config/global.toml --check-config
+db-mcp --config /caminho/config/global.toml --test-connection erp-hml
 ```
+
+`--check-config` valida o catálogo sem conectar. `--test-connection` abre apenas
+a conexão com o ID informado e consulta a versão do banco. Ambas as opções
+encerram o processo sem iniciar o servidor MCP.
 
 ## Conexões
 
@@ -50,8 +55,8 @@ password_env = "ERP_HML_PASSWORD"
 | `id` | Obrigatório; único, no formato `[a-z][a-z0-9-]{0,63}`. |
 | `name`, `description` | Obrigatórios, não vazios; publicados no catálogo MCP. |
 | `aliases` | Lista opcional. Aliases repetidos deixam a escolha para o agente. |
-| `engine` | `oracle`, `postgresql`, `mysql` ou `sqlite`. |
-| `access_mode` | `read_only`, `read_write` ou `read_write_ddl`. |
+| `engine` | `oracle`, `postgresql`, `mysql`, `sqlite` ou `sql_server`. |
+| `access_mode` | `read_only`, `read_write` ou `read_write_ddl`. SQL Server aceita apenas `read_only`. |
 | `default_schema` | Opcional; não restringe os grants do banco. |
 | `connection` | URL e credenciais. |
 | `execution` | Overrides de timeout, linhas e bytes; só podem reduzir os limites globais. |
@@ -62,19 +67,25 @@ password_env = "ERP_HML_PASSWORD"
 | PostgreSQL | `postgresql://host:5432/database` | [PostgreSQL](examples/config/databases/vendas-postgres-homologacao.toml) |
 | MySQL | `mysql://host:3306/database` | [MySQL](examples/config/databases/legado-mysql-homologacao.toml) |
 | SQLite | `sqlite:./arquivo.db` | [SQLite](examples/config/databases/local-sqlite.toml) |
+| SQL Server | `sqlserver://host:1433/database` | [SQL Server](examples/config/databases/relatorios-sql-server.toml) |
 
 Cada campo `url`, `username` e `password` aceita valor direto ou a alternativa
 `url_env`, `username_env` e `password_env`. Usar as duas fontes para o mesmo campo
 é erro. Variável ausente ou vazia também é erro. Não versionar credenciais reais.
 
 URLs de rede exigem host e database/serviço. Credenciais embutidas, query string,
-fragmento e porta zero são recusados. Opções de TLS e certificados personalizados
-não têm campos nesta versão; valem os padrões do driver.
+fragmento e porta zero são recusados. No SQL Server, use login SQL e o host e a
+porta TCP da instância. O certificado TLS precisa corresponder ao host da URL.
+Para uma autoridade interna, defina `connection.tls_ca_file` com o caminho ao
+certificado PEM da CA, relativo ao TOML da conexão ou absoluto. Os demais
+drivers usam seus padrões de TLS.
 
 SQLite usa somente URL, sem usuário ou senha. O arquivo precisa existir; caminhos
 relativos partem do TOML da conexão, e escapes como `%20` são decodificados.
 `default_schema` aceita apenas `main`. No MySQL, ele deve coincidir com o database
-da URL. Oracle usa service name; SID, TNS e wallet não são suportados.
+da URL. Oracle usa service name; SID, TNS e wallet não são suportados. No SQL
+Server, os metadados usam `dbo` por padrão; as consultas sem schema seguem o
+schema padrão do login.
 
 ## Limites globais
 

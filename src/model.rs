@@ -113,6 +113,15 @@ pub struct ExecuteRequest {
     pub statements: Option<Vec<SqlStatement>>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ExplainRequest {
+    pub database_id: String,
+    pub sql: String,
+    #[serde(default)]
+    pub parameters: Vec<Parameter>,
+}
+
 impl ExecuteRequest {
     pub fn into_statements(self, limits: &ExecutionLimits) -> Result<(Vec<SqlStatement>, bool)> {
         let (statements, batch) = match (self.sql, self.statements) {
@@ -169,6 +178,8 @@ pub enum MetadataKind {
     Schemas,
     Tables,
     Columns,
+    Indexes,
+    Constraints,
 }
 
 #[derive(Deserialize, JsonSchema)]

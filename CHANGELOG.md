@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0
+
+- Read Microsoft SQL Server over verified TLS with a SQL login.
+- Inspect indexes and constraints with `describe_database`.
+- Get estimated query plans with `explain_query` on all five databases.
+- Test a configured connection with `--test-connection <database_id>`.
+- Include the privacy policy in release packages.
+
 ## 0.1.2
 
 - Support Oracle accounts with only an `11G` password verifier, including on Oracle 19c.

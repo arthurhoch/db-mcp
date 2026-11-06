@@ -1,13 +1,13 @@
 # Arquitetura
 
-Um pacote Cargo com Tokio, rmcp, SQLx e oracledb. Versões exatas estão em
+Um pacote Cargo com Tokio, rmcp, SQLx, oracledb e Tiberius. Versões exatas estão em
 Cargo.lock; o toolchain fica em rust-toolchain.toml.
 
 ```text
 main → mcp → execution → policy
                 │
                 ├── config / catálogo
-                └── database → SQLx ou oracledb
+                └── database → SQLx, oracledb ou Tiberius
 ```
 
 | Módulo | Responsabilidade |
@@ -18,6 +18,7 @@ main → mcp → execution → policy
 | `execution` | Catálogo público, metadados, admissão, timeout e respostas. |
 | `database/sqlx` | PostgreSQL, MySQL e SQLite: conexão, bindings e transação. |
 | `database/oracle` | Driver Oracle síncrono, bindings, timeout e confirmação. |
+| `database/sql_server` | SQL Server: TLS, bindings, resultados e planos. |
 | `database/metadata` | Consultas internas de metadados. |
 | `error` | Códigos sanitizados e estado dos efeitos. |
 | `mcp`, `main` | Ferramentas, schemas, transporte e inicialização. |
