@@ -1,0 +1,5 @@
+[advisories]
+# Maintenance notice, with no patched version. Oracle and rmcp require chrono.
+# Revisit when those dependencies support a maintained replacement.
+# https://rustsec.org/advisories/RUSTSEC-2026-0543.html
+ignore = ["RUSTSEC-2026-0543"]

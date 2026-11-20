@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+
+- Bundle patched SQLite through the upstream SQLx fix for RUSTSEC-2026-0459.
+- Update the MCP SDK for RUSTSEC-2026-0462 and refresh TOML and UUID dependencies.
+- Update the security workflow actions.
+
 ## 0.2.1
 
 - Shorten the `execute_sql` tool description and keep database context instructions in the MCP server instructions.
