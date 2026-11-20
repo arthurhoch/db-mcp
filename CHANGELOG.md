@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3
+
+- Use the published `oracledb 26.0.0-beta.6` release instead of a Git revision,
+  retaining authentication for Oracle accounts with an `11G` password verifier.
+
 ## 0.2.2
 
 - Bundle patched SQLite through the upstream SQLx fix for RUSTSEC-2026-0459.

@@ -94,8 +94,9 @@ erro de DML individual MySQL reporta `effect=unknown`, mesmo com ROLLBACK aceito
 
 O [oracledb](https://github.com/oracle/rust-oracledb) implementa o protocolo em
 Rust e dispensa Instant Client. A URL usa host, porta e service name por TCP.
-O Cargo.toml fixa o [commit da Oracle](https://github.com/oracle/rust-oracledb/commit/08554f3adc58322c40d36ffc77c8f5ffd53f9293)
-que acrescenta autenticação com verificadores de senha `11G`, além de `12C`.
+A versão [26.0.0-beta.6](https://github.com/oracle/rust-oracledb/releases/tag/v26.0.0-beta.6),
+publicada no crates.io e fixada no Cargo.toml, inclui autenticação com
+verificadores de senha `11G`, além de `12C`.
 O driver recusa verificadores `10G`.
 
 O driver é síncrono e executa fora do executor async. Cancelar o future não

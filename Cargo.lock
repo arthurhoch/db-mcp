@@ -530,7 +530,7 @@ dependencies = [
 
 [[package]]
 name = "db-mcp"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "base64 0.23.1",
  "bigdecimal",
@@ -1326,7 +1326,8 @@ checksum = "7e036b411754132fd6b74e94b74e9a13c5cf606fa93d1885c35860d3060820b1"
 [[package]]
 name = "oracledb"
 version = "26.0.0-beta.6"
-source = "git+https://github.com/oracle/rust-oracledb.git?rev=08554f3adc58322c40d36ffc77c8f5ffd53f9293#08554f3adc58322c40d36ffc77c8f5ffd53f9293"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03813952b1aeba41b54330ea0fb993c0807c785720ff0b9c3e2c8385c1eda9fe"
 dependencies = [
  "aes",
  "base16ct",
