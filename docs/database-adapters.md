@@ -53,7 +53,9 @@ datetime sem offset.
 Oracle vincula decimais como NUMBER, com até 38 dígitos significativos e magnitude
 menor que 1e126. Valores não nulos menores que 1e-130 são recusados. Datas aceitam
 anos de 1 a 9999. Parâmetros com offset são normalizados para UTC e vinculados
-como TIMESTAMP em uma sessão UTC.
+como TIMESTAMP em uma sessão UTC. Datas e timestamps Oracle retornam nove casas
+de fração de segundo, inclusive quando são zero. Valores com timezone retornam
+em UTC com sufixo `Z`.
 
 Bytes usam base64. LOBs Oracle, arrays/tipos personalizados PostgreSQL e outros
 tipos sem decodificador retornam erro; não há conversão genérica. O parâmetro
@@ -94,8 +96,9 @@ erro de DML individual MySQL reporta `effect=unknown`, mesmo com ROLLBACK aceito
 
 O [oracledb](https://github.com/oracle/rust-oracledb) implementa o protocolo em
 Rust e dispensa Instant Client. A URL usa host, porta e service name por TCP.
-O Cargo.toml fixa o [commit da Oracle](https://github.com/oracle/rust-oracledb/commit/08554f3adc58322c40d36ffc77c8f5ffd53f9293)
-que acrescenta autenticação com verificadores de senha `11G`, além de `12C`.
+A versão [26.0.0-beta.6](https://github.com/oracle/rust-oracledb/releases/tag/v26.0.0-beta.6),
+publicada no crates.io e fixada no Cargo.toml, inclui autenticação com
+verificadores de senha `11G`, além de `12C`.
 O driver recusa verificadores `10G`.
 
 O driver é síncrono e executa fora do executor async. Cancelar o future não
