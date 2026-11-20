@@ -1,6 +1,9 @@
 # DB MCP
 
 [![M8ven Score](https://m8ven.ai/badge/mcp/arthurhoch-db-mcp-10phce?v=01c9b4c4da3cb37b05ed9721bf76fa14)](https://m8ven.ai/mcp/arthurhoch-db-mcp-10phce?s=readme)
+[![Release](https://img.shields.io/github/v/release/arthurhoch/db-mcp)](https://github.com/arthurhoch/db-mcp/releases/latest)
+[![CI](https://github.com/arthurhoch/db-mcp/actions/workflows/ci.yaml/badge.svg?branch=main&event=push)](https://github.com/arthurhoch/db-mcp/actions/workflows/ci.yaml?query=branch%3Amain)
+[![License](https://img.shields.io/github/license/arthurhoch/db-mcp)](LICENSE)
 
 An MCP server in Rust for querying and modifying data in Oracle, PostgreSQL,
 MySQL and SQLite, and for querying Microsoft SQL Server. Each connection has a
