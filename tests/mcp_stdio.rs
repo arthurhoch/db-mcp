@@ -139,6 +139,19 @@ async fn stdio_contract(fixture: common::Fixture) {
             .as_str()
             .is_some_and(|version| !version.is_empty())
     );
+    if fixture.engine == Engine::Sqlite {
+        let version = described["result"]["structuredContent"]["version"]
+            .as_str()
+            .unwrap();
+        let components = version
+            .split('.')
+            .map(|component| component.parse::<u32>().unwrap())
+            .collect::<Vec<_>>();
+        assert!(
+            components.as_slice() >= [3, 54, 0].as_slice(),
+            "SQLite {version} is affected by RUSTSEC-2026-0459"
+        );
+    }
 
     let sql = match fixture.engine {
         Engine::Oracle => "SELECT :1 AS answer FROM dual",
