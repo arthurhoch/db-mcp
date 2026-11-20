@@ -60,10 +60,6 @@ jobs:
         run: cargo test --all-targets --locked
       - name: Release build
         run: cargo build --release --locked
-      - name: Release MCP smoke tests
-        env:
-          DB_MCP_TEST_BINARY: ${{ matrix.binary }}
-        run: cargo test --locked --test mcp_stdio
       - name: Package binary, demo and configuration examples
         env:
           PLATFORM: ${{ matrix.platform }}
@@ -86,12 +82,38 @@ jobs:
           else
             tar -czf "$package.tar.gz" -C dist "db-mcp-$PLATFORM"
           fi
+      - name: Package and test MCPB bundle
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          BINARY: ${{ matrix.binary }}
+        run: |
+          package="dist/db-mcp-$PLATFORM"
+          binary_name="${BINARY##*/}"
+          version="$(cargo metadata --no-deps --locked --format-version=1 | jq -r '.packages[0].version')"
+          case "$PLATFORM" in
+            macos-*) os=darwin ;;
+            windows-*) os=win32 ;;
+            linux-*) os=linux ;;
+            *) exit 1 ;;
+          esac
+          jq --arg version "$version" --arg platform "$PLATFORM" --arg os "$os" --arg binary "$binary_name" \
+            '.version = $version | .display_name = ("DB MCP (" + $platform + ")") |
+             .server.entry_point = $binary | .server.mcp_config.command = ("${__dirname}/" + $binary) |
+             .compatibility.platforms = [$os]' \
+            packaging/manifest.template.json > "$package/manifest.json"
+          npx --yes @anthropic-ai/mcpb@2.1.2 pack "$package" "$package.mcpb"
+          unpacked="dist/unpacked-$PLATFORM"
+          npx --yes @anthropic-ai/mcpb@2.1.2 unpack "$package.mcpb" "$unpacked"
+          cmp "$BINARY" "$unpacked/$binary_name"
+          export DB_MCP_TEST_BINARY="$unpacked/$binary_name"
+          cargo test --locked --test mcp_stdio
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: db-mcp-${{ matrix.platform }}
           path: |
             dist/*.tar.gz
             dist/*.zip
+            dist/*.mcpb
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
