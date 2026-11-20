@@ -12,6 +12,10 @@ SQL é enviado no dialeto nativo, após validação pelo parser. Não há tradu�
 entre bancos. Oracle usa o parser genérico; construções que ele não reconhece
 são recusadas. Metadados vêm de consultas internas com filtros parametrizados.
 
+O SQLx está fixado no commit upstream `10462fa4`, que permite compilar com o
+SQLite corrigido para RUSTSEC-2026-0459. A versão publicada 0.9.0 limita a
+dependência a versões anteriores à correção.
+
 PostgreSQL e Oracle aceitam schema padrão configurado. MySQL mantém o database
 da URL. SQLite oferece somente `main` e abre apenas arquivos existentes. No SQL
 Server, qualifique tabelas com o schema quando ele não for o padrão do login.
