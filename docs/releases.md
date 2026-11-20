@@ -28,6 +28,21 @@ SHA-256 checksums and attests provenance before publishing all assets together.
 Packages include a ready-to-use SQLite demo and configuration examples. Existing
 release assets are not overwritten.
 
+Each platform also produces an MCPB bundle using the pinned MCPB CLI. The build
+validates its manifest, extracts the bundle, compares the executable with the
+release build and runs the MCP smoke tests against that extracted executable.
+Node.js is used only by the packaging tool; the installed server is a native binary.
+
+The release includes `server.json` with the namespace
+`io.github.arthurhoch/db-mcp`, the six bundle URLs and their SHA-256 hashes.
+It is covered by the release checksums and provenance. After publishing the GitHub
+release, the MCP Registry workflow verifies this metadata and registers the
+packages using GitHub Actions OIDC. No registry password is stored in the repository.
+
+If registry publication fails after the GitHub release is available, rerun the
+MCP Registry workflow with that release tag. Rebuilding the release is unnecessary.
+The publisher version and archive hash are pinned in that workflow.
+
 The manual Release workflow accepts an existing tag; choose that same tag as the
 workflow's Git ref. The workflow rejects a different triggering commit.
 

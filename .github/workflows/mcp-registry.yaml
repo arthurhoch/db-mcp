@@ -1,0 +1,66 @@
+name: MCP Registry
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published GitHub release to register (vX.Y.Z).
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-registry-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Register published packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ inputs.tag }}
+      MCP_PUBLISHER_VERSION: v1.8.10
+      MCP_PUBLISHER_SHA256: 32d287ed6fb7dc04eddd2621097784c06a355b2348b35ccc630a1643aa75ff4a
+    steps:
+      - name: Download and verify release metadata
+        working-directory: ${{ runner.temp }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          gh release download "$TAG" --pattern server.json --pattern SHA256SUMS
+          grep ' server.json$' SHA256SUMS | sha256sum --check -
+          gh attestation verify server.json --repo "$GH_REPO" \
+            --source-ref "refs/tags/$TAG" \
+            --signer-workflow "$GH_REPO/.github/workflows/release.yaml" \
+            --deny-self-hosted-runners
+          jq --exit-status --arg version "${TAG#v}" \
+            '.name == "io.github.arthurhoch/db-mcp" and .version == $version' server.json
+      - name: Install pinned registry publisher
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl --fail --silent --show-error --location \
+            "https://github.com/modelcontextprotocol/registry/releases/download/$MCP_PUBLISHER_VERSION/mcp-publisher_linux_amd64.tar.gz" \
+            --output mcp-publisher.tar.gz
+          printf '%s  %s\n' "$MCP_PUBLISHER_SHA256" mcp-publisher.tar.gz | sha256sum --check -
+          tar -xzf mcp-publisher.tar.gz mcp-publisher
+      - name: Validate and publish to MCP Registry
+        working-directory: ${{ runner.temp }}
+        run: |
+          ./mcp-publisher validate server.json
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish server.json

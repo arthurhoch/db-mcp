@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4
+
+- Publish MCPB bundles for macOS, Linux and Windows on x64 and ARM64.
+- Publish package metadata to the official MCP Registry after each GitHub release.
+- Add Glama maintainer metadata.
+
 ## 0.2.3
 
 - Use the published `oracledb 26.0.0-beta.6` release instead of a Git revision,

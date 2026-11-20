@@ -1,0 +1,12 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.arthurhoch/db-mcp",
+  "title": "DB MCP",
+  "description": "Native SQL, schema metadata and query plans for Oracle, PostgreSQL, MySQL, SQLite and SQL Server.",
+  "repository": {
+    "url": "https://github.com/arthurhoch/db-mcp",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/arthurhoch/db-mcp",
+  "packages": []
+}

@@ -1,5 +1,7 @@
 # DB MCP
 
+<!-- mcp-name: io.github.arthurhoch/db-mcp -->
+
 [![M8ven Score](https://m8ven.ai/badge/mcp/arthurhoch-db-mcp-10phce?v=01c9b4c4da3cb37b05ed9721bf76fa14)](https://m8ven.ai/mcp/arthurhoch-db-mcp-10phce?s=readme)
 [![Release](https://img.shields.io/github/v/release/arthurhoch/db-mcp)](https://github.com/arthurhoch/db-mcp/releases/latest)
 [![CI](https://github.com/arthurhoch/db-mcp/actions/workflows/ci.yaml/badge.svg?branch=main&event=push)](https://github.com/arthurhoch/db-mcp/actions/workflows/ci.yaml?query=branch%3Amain)
@@ -15,6 +17,10 @@ database by ID and executes SQL in its native dialect.
 Download a package from [Releases](https://github.com/arthurhoch/db-mcp/releases/latest).
 Rust and Oracle Instant Client are not required. Packages include the executable,
 a SQLite demo and configuration examples.
+
+MCPB-compatible clients can install a `.mcpb` asset from the same release. Choose
+the bundle matching your system and processor, then select your existing global
+TOML file when the client asks. Connections and access modes use that configuration.
 
 | System | x64 (Intel/AMD) | ARM64 (Apple Silicon/ARM) |
 | --- | --- | --- |

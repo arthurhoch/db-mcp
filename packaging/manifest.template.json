@@ -1,0 +1,30 @@
+{
+  "manifest_version": "0.3",
+  "name": "db-mcp",
+  "description": "Query Oracle, PostgreSQL, MySQL, SQLite and SQL Server using your local database configuration.",
+  "author": {
+    "name": "Arthur Hoch",
+    "url": "https://github.com/arthurhoch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arthurhoch/db-mcp"
+  },
+  "documentation": "https://github.com/arthurhoch/db-mcp#readme",
+  "support": "https://github.com/arthurhoch/db-mcp/issues",
+  "license": "MIT",
+  "server": {
+    "type": "binary",
+    "mcp_config": {
+      "args": ["--config", "${user_config.config_path}"]
+    }
+  },
+  "user_config": {
+    "config_path": {
+      "type": "file",
+      "title": "Global configuration",
+      "description": "Select your DB MCP global TOML file. Database connections and access modes come from that file.",
+      "required": true
+    }
+  }
+}
