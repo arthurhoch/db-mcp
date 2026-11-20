@@ -3,6 +3,7 @@
 <!-- mcp-name: io.github.arthurhoch/db-mcp -->
 
 [![M8ven Score](https://m8ven.ai/badge/mcp/arthurhoch-db-mcp-10phce?v=01c9b4c4da3cb37b05ed9721bf76fa14)](https://m8ven.ai/mcp/arthurhoch-db-mcp-10phce?s=readme)
+[![MCP Registry](https://img.shields.io/badge/MCP_Registry-db--mcp-blue)](https://registry.modelcontextprotocol.io/?q=io.github.arthurhoch%2Fdb-mcp)
 [![Release](https://img.shields.io/github/v/release/arthurhoch/db-mcp)](https://github.com/arthurhoch/db-mcp/releases/latest)
 [![CI](https://github.com/arthurhoch/db-mcp/actions/workflows/ci.yaml/badge.svg?branch=main&event=push)](https://github.com/arthurhoch/db-mcp/actions/workflows/ci.yaml?query=branch%3Amain)
 [![License](https://img.shields.io/github/license/arthurhoch/db-mcp)](LICENSE)
