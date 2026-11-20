@@ -53,7 +53,9 @@ datetime sem offset.
 Oracle vincula decimais como NUMBER, com até 38 dígitos significativos e magnitude
 menor que 1e126. Valores não nulos menores que 1e-130 são recusados. Datas aceitam
 anos de 1 a 9999. Parâmetros com offset são normalizados para UTC e vinculados
-como TIMESTAMP em uma sessão UTC.
+como TIMESTAMP em uma sessão UTC. Datas e timestamps Oracle retornam nove casas
+de fração de segundo, inclusive quando são zero. Valores com timezone retornam
+em UTC com sufixo `Z`.
 
 Bytes usam base64. LOBs Oracle, arrays/tipos personalizados PostgreSQL e outros
 tipos sem decodificador retornam erro; não há conversão genérica. O parâmetro

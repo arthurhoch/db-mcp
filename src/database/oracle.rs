@@ -439,6 +439,20 @@ fn bind_timestamp(value: NaiveDateTime) -> Result<OracleTimestamp> {
     Ok(OracleTimestamp::from(value))
 }
 
+fn format_timestamp(timestamp: OracleTimestamp) -> String {
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:09}{}",
+        timestamp.year(),
+        timestamp.month(),
+        timestamp.day(),
+        timestamp.hour(),
+        timestamp.minute(),
+        timestamp.second(),
+        timestamp.nanoseconds(),
+        if timestamp.is_utc() { "Z" } else { "" }
+    )
+}
+
 fn oracle_encoding(native: &DbType) -> &'static str {
     if native == oracledb::DB_TYPE_NUMBER || native == oracledb::DB_TYPE_BINARY_INTEGER {
         "decimal_string"
@@ -484,16 +498,7 @@ fn decode(row: &oracledb::Row) -> Result<Vec<Value>> {
                 Ok(row
                     .get::<Option<OracleTimestamp>>(index)
                     .map_err(driver_error)?
-                    .map(|timestamp| {
-                        let text = timestamp.to_string();
-                        Value::String(
-                            if native == oracledb::DB_TYPE_TIMESTAMP_LTZ && !timestamp.is_utc() {
-                                format!("{text}Z")
-                            } else {
-                                text
-                            },
-                        )
-                    })
+                    .map(|timestamp| Value::String(format_timestamp(timestamp)))
                     .unwrap_or(Value::Null))
             } else if native == oracledb::DB_TYPE_BOOLEAN {
                 Ok(row

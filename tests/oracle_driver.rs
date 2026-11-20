@@ -90,7 +90,7 @@ async fn timestamps_with_time_zones_are_returned_in_utc() {
                 &format!(
                     "INSERT INTO {setup_table}
              SELECT stamp, stamp FROM (
-                 SELECT TO_TIMESTAMP_TZ('2026-10-31 11:22:33.123456789 -03:00',
+                 SELECT TO_TIMESTAMP_TZ('2026-10-31 11:22:33.000000000 -03:00',
                         'YYYY-MM-DD HH24:MI:SS.FF9 TZH:TZM') AS stamp FROM dual
              )"
                 ),
@@ -127,8 +127,8 @@ async fn timestamps_with_time_zones_are_returned_in_utc() {
         result["rows"],
         json!([
             [
-                "2026-10-31T14:22:33.123456789Z",
-                "2026-10-31T14:22:33.123456789Z"
+                "2026-10-31T14:22:33.000000000Z",
+                "2026-10-31T14:22:33.000000000Z"
             ],
             [
                 "2026-10-31T14:22:33.123456789Z",
