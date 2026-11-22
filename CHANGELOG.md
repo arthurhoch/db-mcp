@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.5
+
+- Update `url` to 2.5.9 for RUSTSEC-2026-0592 (stack overflow on nested `blob:` URLs).
+- Clarify `execute_sql` input alternatives, access modes, results and retry safety.
+- Describe its request fields, batch statements and typed parameter formats in the MCP schema.
+
 ## 0.2.4
 
 - Publish MCPB bundles for macOS, Linux and Windows on x64 and ARM64.

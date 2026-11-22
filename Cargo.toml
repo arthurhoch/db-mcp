@@ -1,6 +1,6 @@
 [package]
 name = "db-mcp"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 rust-version = "1.99"
 description = "Local MCP server for Oracle, PostgreSQL, MySQL, SQLite and SQL Server"
@@ -30,7 +30,7 @@ tokio-util = { version = "0.7", features = ["compat"] }
 toml = "1.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-url = "2"
+url = "2.5.9"
 uuid = { version = "1", features = ["v4", "serde"] }
 
 [dev-dependencies]

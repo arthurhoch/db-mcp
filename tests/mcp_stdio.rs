@@ -111,6 +111,21 @@ async fn stdio_contract(fixture: common::Fixture) {
             }),
             "{name}"
         );
+        if executes_sql {
+            for schema in [
+                &tool["inputSchema"],
+                &tool["inputSchema"]["$defs"]["SqlStatement"],
+            ] {
+                for (field, definition) in schema["properties"].as_object().unwrap() {
+                    assert!(
+                        definition["description"]
+                            .as_str()
+                            .is_some_and(|description| !description.trim().is_empty()),
+                        "missing execute_sql parameter description for {field}"
+                    );
+                }
+            }
+        }
     }
     send(&mut input,json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_databases","arguments":{}}})).await;
     let catalog = receive(&mut output, 3).await;

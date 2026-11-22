@@ -20,15 +20,25 @@ use crate::{
     deny_unknown_fields
 )]
 pub enum Parameter {
+    /// SQL NULL with its type inferred from the statement; omit value.
     Null,
+    /// A JSON boolean: true or false.
     Boolean(bool),
+    /// A signed 64-bit or unsigned 64-bit integer encoded as a decimal string.
     Integer(String),
+    /// An exact decimal encoded as a string, such as "123.45".
     Decimal(String),
+    /// A finite JSON number.
     Float(f64),
+    /// Text bound as a value, not as SQL or an identifier.
     String(String),
+    /// A date in YYYY-MM-DD format.
     Date(String),
+    /// An ISO local timestamp or RFC3339 timestamp; offsets are normalized to UTC.
     Timestamp(String),
+    /// Any JSON value to bind as JSON.
     Json(Value),
+    /// Bytes encoded using standard base64.
     Binary(String),
 }
 
@@ -98,7 +108,9 @@ impl Parameter {
 #[derive(Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SqlStatement {
+    /// One statement in the database's native dialect; SQL text is not split at semicolons.
     pub sql: String,
+    /// Values in native placeholder order, each as {"type": ..., "value": ...}; omit value for null. Defaults to no bindings.
     #[serde(default)]
     pub parameters: Vec<Parameter>,
 }
@@ -106,10 +118,14 @@ pub struct SqlStatement {
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ExecuteRequest {
+    /// Exact ID from list_databases, not a display name, alias or connection URL. Permissions come from this connection's configuration.
     pub database_id: String,
+    /// One native SQL statement. Supply either sql with optional parameters or statements, never both. Transaction-control statements are rejected.
     pub sql: Option<String>,
+    /// Bindings for sql in native placeholder order: $1 in PostgreSQL, :1 in Oracle, ? in MySQL/SQLite, @P1 in SQL Server. Each value has a type tag; integer/decimal use strings, binary uses base64. Omit or leave empty when using statements.
     #[serde(default)]
     pub parameters: Vec<Parameter>,
+    /// Nonempty ordered batch on one connection and transaction, with bindings inside each item. Omit sql. Context setup may precede queries. DDL must run individually; routines that commit internally prevent guaranteed batch rollback.
     pub statements: Option<Vec<SqlStatement>>,
 }
 
