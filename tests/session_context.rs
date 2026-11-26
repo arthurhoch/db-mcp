@@ -154,9 +154,9 @@ async fn postgres_rls_uses_context_for_the_whole_transaction() {
             .directory
             .path()
             .join(format!("databases/{id}.toml"));
-        let mut config: toml::Value =
+        let mut config: toml::Table =
             toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-        config["default_schema"] = schema.clone().into();
+        config.insert("default_schema".into(), schema.clone().into());
         config["connection"]["username"] = role.clone().into();
         std::fs::write(path, toml::to_string(&config).unwrap()).unwrap();
     }
