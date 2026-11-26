@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.6
+
+- Set the PostgreSQL search path and statement timeout in one query when a default schema is configured.
+- Fetch Oracle results in blocks of up to 32 rows after the first row.
+- Check repeated write-table references once per batch on PostgreSQL, MySQL and Oracle.
+- Test tenant changes within a batch and concurrent calls under PostgreSQL RLS and Oracle VPD.
+- Add README prompts for installation and database setup. Network database examples use password environment variables.
+
 ## 0.2.5
 
 - Update `url` to 2.5.9 for RUSTSEC-2026-0592 (stack overflow on nested `blob:` URLs).

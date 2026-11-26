@@ -1,6 +1,9 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
+use std::{
+    collections::BTreeSet,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use tokio::sync::OwnedSemaphorePermit;
@@ -9,7 +12,7 @@ use crate::{
     config::{DatabaseConfig, Engine},
     error::{Effect, Result},
     model::StatementResult,
-    policy::PreparedStatement,
+    policy::{PreparedStatement, StatementKind},
 };
 
 pub mod metadata;
@@ -56,4 +59,42 @@ pub async fn run(job: Job) -> Result<Outcome> {
 
 pub fn quote_identifier(identifier: &str) -> String {
     format!("\"{}\"", identifier.replace('"', "\"\""))
+}
+
+// Preflight locks last for the transaction. Check each distinct spelling once,
+// in first-use order, without changing the order of the statements themselves.
+fn batch_write_relations(statements: &[PreparedStatement]) -> impl Iterator<Item = &str> {
+    let mut seen = BTreeSet::new();
+    statements
+        .iter()
+        .filter(|statement| statement.kind == StatementKind::Write)
+        .flat_map(|statement| &statement.relations)
+        .map(String::as_str)
+        .filter(move |relation| seen.insert(*relation))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preflight_visits_each_write_relation_once_in_first_use_order() {
+        let statement = |kind, relations: &[&str]| PreparedStatement {
+            sql: String::new(),
+            parameters: vec![],
+            kind,
+            relations: relations.iter().map(|name| name.to_string()).collect(),
+        };
+        let batch = [
+            statement(StatementKind::Read, &["audit"]),
+            statement(StatementKind::Write, &["orders"]),
+            statement(StatementKind::Routine, &["tenant_context"]),
+            statement(StatementKind::Write, &["items", "orders"]),
+            statement(StatementKind::Write, &["other.orders"]),
+        ];
+        assert_eq!(
+            batch_write_relations(&batch).collect::<Vec<_>>(),
+            ["orders", "items", "other.orders"]
+        );
+    }
 }

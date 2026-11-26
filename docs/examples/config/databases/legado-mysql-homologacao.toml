@@ -1,4 +1,3 @@
-# Exemplo fictício do terceiro modo, que também permite DDL suportado.
 config_version = 1
 id = "legado-mysql-homologacao"
 name = "Legado MySQL — Homologação"
@@ -10,4 +9,4 @@ access_mode = "read_write_ddl"
 [connection]
 url = "mysql://mysql.example.invalid:3306/legado_hml"
 username = "legado_schema_editor"
-password = "SUBSTITUIR_LOCALMENTE"
+password_env = "LEGADO_HML_PASSWORD"
