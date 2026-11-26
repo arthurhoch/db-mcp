@@ -76,6 +76,10 @@ Veja [contexto e consultas](mcp.md#contexto-e-consultas).
 | SQLite | Transação nativa no arquivo selecionado, sem ATTACH ou extensões carregadas pelo agente. |
 | SQL Server | Apenas leituras; a transação é encerrada com rollback. |
 
+Dentro de um lote, referências repetidas à mesma tabela de escrita passam uma
+vez pela verificação de estrutura. O banco aplica RLS ou VPD a cada comando com
+o contexto vigente na sessão. A chamada seguinte começa com uma nova conexão.
+
 Um recurso não verificável gera BATCH_NOT_ATOMIC antes do primeiro statement do
 usuário. Consultas internas e locks podem ocorrer antes dessa recusa. O lote
 confirma uma vez ao final; erros tentam rollback e preservam a incerteza se a

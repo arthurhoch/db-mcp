@@ -244,6 +244,10 @@ impl OutputBudget {
         }
     }
 
+    pub(crate) fn remaining_rows(&self) -> usize {
+        self.max_rows - self.used_rows
+    }
+
     pub fn columns(&mut self, columns: &[Column]) -> Result<()> {
         let bytes = serde_json::to_vec(columns)
             .map_err(|_| {

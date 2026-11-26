@@ -33,8 +33,10 @@ bindings inválidos antes do lote. O processo MCP é exercitado nos quatro banco
 
 Os testes de contexto usam RLS real no PostgreSQL, com usuário sem bypass, e
 VPD com pacote Oracle. Verificam contexto compartilhado entre statements,
-isolamento entre chamadas, escrita filtrada, rollback, falha na preparação e
-efeito desconhecido quando um pacote confirma a transação internamente.
+isolamento entre chamadas simultâneas, troca de tenant entre escritas na mesma
+tabela, rollback, falha na preparação e efeito desconhecido quando um pacote
+confirma a transação internamente. No Oracle, a leitura atravessa mais de um
+bloco de linhas e verifica o truncamento com VPD ativo.
 
 O job `SQL Server tests` usa o [container oficial do SQL Server 2022](../tests/compose-sql-server.yaml)
 em Linux x64, com credenciais descartáveis e uma CA de teste. Verifica conexão

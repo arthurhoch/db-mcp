@@ -174,10 +174,12 @@ fn run_blocking(job: Job) -> Result<Outcome> {
                 .iter()
                 .map(|value| &**value as &dyn ToDbValue)
                 .collect::<Vec<_>>();
+            // One extra row lets OutputBudget distinguish an exact fit from truncation.
+            let fetch_rows = budget.remaining_rows().saturating_add(1).min(32) as u32;
             let mut statement = connection
                 .statement(sql)
                 .map_err(driver_error)?
-                .fetch_array_size(1)
+                .fetch_array_size(fetch_rows)
                 .prefetch_rows(1)
                 .fetch_lobs()
                 .exclude_from_cache()
@@ -290,7 +292,8 @@ fn preflight(
     progress: &super::Progress,
     deadline: Instant,
 ) -> Result<()> {
-    if !statements.iter().any(|s| s.kind == StatementKind::Write) {
+    let mut relations = super::batch_write_relations(statements).peekable();
+    if relations.peek().is_none() {
         return Ok(());
     }
     let owner: String = connection
@@ -302,69 +305,67 @@ fn preflight(
         .get(0)
         .map_err(driver_error)?;
     let schema = config.default_schema.as_deref().unwrap_or(&owner);
-    for statement in statements.iter().filter(|s| s.kind == StatementKind::Write) {
-        for relation in &statement.relations {
-            if progress.cancelled.load(Ordering::SeqCst) || Instant::now() >= deadline {
+    for relation in relations {
+        if progress.cancelled.load(Ordering::SeqCst) || Instant::now() >= deadline {
+            return Err(AppError::new(
+                ErrorCode::ExecutionTimeout,
+                "Prazo de validação do lote Oracle excedido.",
+            ));
+        }
+        connection
+            .set_call_timeout(Some(
+                deadline
+                    .saturating_duration_since(Instant::now())
+                    .max(Duration::from_millis(1)),
+            ))
+            .map_err(driver_error)?;
+        let parts = relation
+            .split('.')
+            .map(|part| {
+                if part.starts_with('"') {
+                    part.trim_matches('"').replace("\"\"", "\"")
+                } else {
+                    part.to_uppercase()
+                }
+            })
+            .collect::<Vec<_>>();
+        let table = match parts.as_slice() {
+            [table] if schema == owner => table,
+            [specified_owner, table] if specified_owner == &owner => table,
+            _ => {
                 return Err(AppError::new(
-                    ErrorCode::ExecutionTimeout,
-                    "Prazo de validação do lote Oracle excedido.",
+                    ErrorCode::BatchNotAtomic,
+                    "Lotes Oracle exigem tabelas locais do próprio usuário.",
                 ));
             }
-            connection
-                .set_call_timeout(Some(
-                    deadline
-                        .saturating_duration_since(Instant::now())
-                        .max(Duration::from_millis(1)),
-                ))
-                .map_err(driver_error)?;
-            let parts = relation
-                .split('.')
-                .map(|part| {
-                    if part.starts_with('"') {
-                        part.trim_matches('"').replace("\"\"", "\"")
-                    } else {
-                        part.to_uppercase()
-                    }
-                })
-                .collect::<Vec<_>>();
-            let table = match parts.as_slice() {
-                [table] if schema == owner => table,
-                [specified_owner, table] if specified_owner == &owner => table,
-                _ => {
-                    return Err(AppError::new(
-                        ErrorCode::BatchNotAtomic,
-                        "Lotes Oracle exigem tabelas locais do próprio usuário.",
-                    ));
-                }
-            };
-            connection
-                .execute(
-                    &format!(
-                        "LOCK TABLE {}.{} IN ROW SHARE MODE",
-                        super::quote_identifier(&owner),
-                        super::quote_identifier(table)
-                    ),
-                    &[],
-                )
-                .map_err(driver_error)?;
-            let metadata = connection
-                .query_row(
-                    "SELECT (SELECT COUNT(*) FROM user_tables WHERE table_name=:1),
+        };
+        connection
+            .execute(
+                &format!(
+                    "LOCK TABLE {}.{} IN ROW SHARE MODE",
+                    super::quote_identifier(&owner),
+                    super::quote_identifier(table)
+                ),
+                &[],
+            )
+            .map_err(driver_error)?;
+        let metadata = connection
+            .query_row(
+                "SELECT (SELECT COUNT(*) FROM user_tables WHERE table_name=:1),
                         (SELECT COUNT(*) FROM user_triggers WHERE table_name=:2),
                         (SELECT COUNT(*) FROM user_external_tables WHERE table_name=:3)
                  FROM dual",
-                    &[table, table, table],
-                )
-                .map_err(driver_error)?;
-            let tables: i64 = metadata.get(0).map_err(driver_error)?;
-            let triggers: i64 = metadata.get(1).map_err(driver_error)?;
-            let external: i64 = metadata.get(2).map_err(driver_error)?;
-            if tables != 1 || triggers != 0 || external != 0 {
-                return Err(AppError::new(
-                    ErrorCode::BatchNotAtomic,
-                    "Lotes Oracle exigem tabelas próprias, sem triggers ou armazenamento externo.",
-                ));
-            }
+                &[table, table, table],
+            )
+            .map_err(driver_error)?;
+        let tables: i64 = metadata.get(0).map_err(driver_error)?;
+        let triggers: i64 = metadata.get(1).map_err(driver_error)?;
+        let external: i64 = metadata.get(2).map_err(driver_error)?;
+        if tables != 1 || triggers != 0 || external != 0 {
+            return Err(AppError::new(
+                ErrorCode::BatchNotAtomic,
+                "Lotes Oracle exigem tabelas próprias, sem triggers ou armazenamento externo.",
+            ));
         }
     }
     Ok(())
