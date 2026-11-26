@@ -1,4 +1,3 @@
-# Exemplo fictício de conexão autorizada para leitura e DML.
 config_version = 1
 id = "vendas-postgres-homologacao"
 name = "Vendas PostgreSQL — Homologação"
@@ -11,4 +10,4 @@ default_schema = "public"
 [connection]
 url = "postgresql://postgres.example.invalid:5432/vendas_hml"
 username = "vendas_writer"
-password = "SUBSTITUIR_LOCALMENTE"
+password_env = "VENDAS_HML_PASSWORD"
