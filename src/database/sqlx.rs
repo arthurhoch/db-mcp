@@ -59,18 +59,18 @@ async fn connect_postgres(config: &DatabaseConfig) -> Result<sqlx::PgConnection>
                 "Não foi possível conectar ao PostgreSQL.",
             )
         })?;
-    if let Some(schema) = &config.default_schema {
-        sqlx::query("SELECT set_config('search_path', $1, false)")
-            .bind(super::quote_identifier(schema))
-            .execute(&mut connection)
-            .await
-            .map_err(driver_error)?;
-    }
-    sqlx::query("SELECT set_config('statement_timeout', $1, false)")
-        .bind(format!("{}s", config.limits.query_timeout_seconds))
-        .execute(&mut connection)
-        .await
-        .map_err(driver_error)?;
+    let timeout = format!("{}s", config.limits.query_timeout_seconds);
+    let setup = match &config.default_schema {
+        Some(schema) => sqlx::query(
+            "SELECT pg_catalog.set_config('search_path', $1, false),
+                    pg_catalog.set_config('statement_timeout', $2, false)",
+        )
+        .bind(super::quote_identifier(schema))
+        .bind(timeout),
+        None => sqlx::query("SELECT pg_catalog.set_config('statement_timeout', $1, false)")
+            .bind(timeout),
+    };
+    setup.execute(&mut connection).await.map_err(driver_error)?;
     Ok(connection)
 }
 
@@ -336,33 +336,29 @@ impl BatchPreflight for sqlx::PgConnection {
             .collect()
     }
     async fn check_batch(&mut self, statements: &[PreparedStatement]) -> Result<()> {
-        for statement in statements.iter().filter(|s| s.kind == StatementKind::Write) {
-            for relation in &statement.relations {
-                // relation is a parser-rendered ObjectName, never an arbitrary string input.
-                self.execute(
-                    sqlx::AssertSqlSafe(format!(
-                        "LOCK TABLE {relation} IN SHARE ROW EXCLUSIVE MODE"
-                    ))
+        for relation in super::batch_write_relations(statements) {
+            // relation is a parser-rendered ObjectName, never an arbitrary string input.
+            self.execute(
+                sqlx::AssertSqlSafe(format!("LOCK TABLE {relation} IN SHARE ROW EXCLUSIVE MODE"))
                     .into_sql_str(),
-                )
-                .await
-                .map_err(driver_error)?;
-                let row = sqlx::query("SELECT c.relkind::text AS kind, EXISTS(SELECT 1 FROM pg_trigger t WHERE t.tgrelid=c.oid AND NOT t.tgisinternal) AS has_triggers FROM pg_class c WHERE c.oid=to_regclass($1)")
+            )
+            .await
+            .map_err(driver_error)?;
+            let row = sqlx::query("SELECT c.relkind::text AS kind, EXISTS(SELECT 1 FROM pg_trigger t WHERE t.tgrelid=c.oid AND NOT t.tgisinternal) AS has_triggers FROM pg_class c WHERE c.oid=to_regclass($1)")
                     .bind(relation).fetch_optional(&mut *self).await.map_err(driver_error)?;
-                let Some(row) = row else {
-                    return Err(AppError::new(
-                        ErrorCode::BatchNotAtomic,
-                        "Tabela PostgreSQL do lote não verificável.",
-                    ));
-                };
-                let kind: String = row.try_get("kind").map_err(driver_error)?;
-                let triggers: bool = row.try_get("has_triggers").map_err(driver_error)?;
-                if kind != "r" || triggers {
-                    return Err(AppError::new(
-                        ErrorCode::BatchNotAtomic,
-                        "Lotes PostgreSQL exigem tabelas locais não particionadas e sem triggers de usuário.",
-                    ));
-                }
+            let Some(row) = row else {
+                return Err(AppError::new(
+                    ErrorCode::BatchNotAtomic,
+                    "Tabela PostgreSQL do lote não verificável.",
+                ));
+            };
+            let kind: String = row.try_get("kind").map_err(driver_error)?;
+            let triggers: bool = row.try_get("has_triggers").map_err(driver_error)?;
+            if kind != "r" || triggers {
+                return Err(AppError::new(
+                    ErrorCode::BatchNotAtomic,
+                    "Lotes PostgreSQL exigem tabelas locais não particionadas e sem triggers de usuário.",
+                ));
             }
         }
         Ok(())
@@ -397,58 +393,56 @@ WHERE TABLE_SCHEMA=COALESCE(?,DATABASE()) AND TABLE_NAME=?
 
 impl BatchPreflight for sqlx::MySqlConnection {
     async fn check_batch(&mut self, statements: &[PreparedStatement]) -> Result<()> {
-        for statement in statements.iter().filter(|s| s.kind == StatementKind::Write) {
-            for relation in &statement.relations {
-                let parts = relation
-                    .split('.')
-                    .map(|part| part.trim_matches('`').to_owned())
-                    .collect::<Vec<_>>();
-                let (schema, table) = match parts.as_slice() {
-                    [table] => (None, table),
-                    [schema, table] => (Some(schema.as_str()), table),
-                    _ => {
-                        return Err(AppError::new(
-                            ErrorCode::BatchNotAtomic,
-                            "Referência de tabela não verificável para lote MySQL.",
-                        ));
-                    }
-                };
-                let quoted = parts
-                    .iter()
-                    .map(|part| format!("`{}`", part.replace('`', "``")))
-                    .collect::<Vec<_>>()
-                    .join(".");
-                self.execute(
-                    sqlx::AssertSqlSafe(format!("SELECT 1 FROM {quoted} WHERE 1=0")).into_sql_str(),
-                )
-                .await
-                .map_err(driver_error)?;
-                let row = sqlx::query(MYSQL_BATCH_TABLE_SQL)
-                    .bind(schema)
-                    .bind(table)
-                    .fetch_optional(&mut *self)
-                    .await
-                    .map_err(driver_error)?;
-                let Some(row) = row else {
+        for relation in super::batch_write_relations(statements) {
+            let parts = relation
+                .split('.')
+                .map(|part| part.trim_matches('`').to_owned())
+                .collect::<Vec<_>>();
+            let (schema, table) = match parts.as_slice() {
+                [table] => (None, table),
+                [schema, table] => (Some(schema.as_str()), table),
+                _ => {
                     return Err(AppError::new(
                         ErrorCode::BatchNotAtomic,
-                        "Não foi possível verificar o engine de uma tabela do lote.",
-                    ));
-                };
-                let engine: Option<String> = row.try_get("ENGINE").map_err(driver_error)?;
-                let triggers: i64 = row.try_get("trigger_count").map_err(driver_error)?;
-                let visible: i64 = row.try_get("trigger_visible").map_err(driver_error)?;
-                if !engine
-                    .as_deref()
-                    .is_some_and(|s| s.eq_ignore_ascii_case("InnoDB"))
-                    || triggers != 0
-                    || visible == 0
-                {
-                    return Err(AppError::new(
-                        ErrorCode::BatchNotAtomic,
-                        "Lotes MySQL exigem tabelas InnoDB sem triggers e privilégios que permitam verificar seus triggers.",
+                        "Referência de tabela não verificável para lote MySQL.",
                     ));
                 }
+            };
+            let quoted = parts
+                .iter()
+                .map(|part| format!("`{}`", part.replace('`', "``")))
+                .collect::<Vec<_>>()
+                .join(".");
+            self.execute(
+                sqlx::AssertSqlSafe(format!("SELECT 1 FROM {quoted} WHERE 1=0")).into_sql_str(),
+            )
+            .await
+            .map_err(driver_error)?;
+            let row = sqlx::query(MYSQL_BATCH_TABLE_SQL)
+                .bind(schema)
+                .bind(table)
+                .fetch_optional(&mut *self)
+                .await
+                .map_err(driver_error)?;
+            let Some(row) = row else {
+                return Err(AppError::new(
+                    ErrorCode::BatchNotAtomic,
+                    "Não foi possível verificar o engine de uma tabela do lote.",
+                ));
+            };
+            let engine: Option<String> = row.try_get("ENGINE").map_err(driver_error)?;
+            let triggers: i64 = row.try_get("trigger_count").map_err(driver_error)?;
+            let visible: i64 = row.try_get("trigger_visible").map_err(driver_error)?;
+            if !engine
+                .as_deref()
+                .is_some_and(|s| s.eq_ignore_ascii_case("InnoDB"))
+                || triggers != 0
+                || visible == 0
+            {
+                return Err(AppError::new(
+                    ErrorCode::BatchNotAtomic,
+                    "Lotes MySQL exigem tabelas InnoDB sem triggers e privilégios que permitam verificar seus triggers.",
+                ));
             }
         }
         Ok(())

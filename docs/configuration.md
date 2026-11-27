@@ -1,6 +1,6 @@
 # Configuração
 
-O arquivo global aponta para um diretório com um TOML por conexão:
+`global.toml` aponta para a pasta que contém um arquivo TOML por conexão.
 
 ```text
 config/
@@ -18,19 +18,23 @@ databases_dir = "./databases"
 transport = "stdio"
 ```
 
-Os arquivos `.toml` são carregados sem recursão, em ordem de nome. Um arquivo
-inválido ou ID duplicado impede a inicialização. O catálogo é carregado sem
-abrir conexões; mudanças exigem reiniciar o processo. Symlinks de arquivos de
-conexão são recusados.
+O servidor lê os arquivos `.toml` diretamente em `databases_dir`, em ordem de
+nome. Um TOML inválido, um ID duplicado ou um link simbólico no lugar de um
+arquivo de conexão impede a inicialização.
+
+Para adicionar um banco, copie apenas o [exemplo do seu banco](#conexões) para
+esse diretório. Ajuste o ID, o modo de acesso e os dados de conexão. Nos bancos
+de rede, defina a variável indicada por `password_env` tanto no ambiente de
+validação quanto no processo iniciado pelo cliente MCP.
 
 ```sh
 db-mcp --config /caminho/config/global.toml --check-config
 db-mcp --config /caminho/config/global.toml --test-connection erp-hml
 ```
 
-`--check-config` valida o catálogo sem conectar. `--test-connection` abre apenas
-a conexão com o ID informado e consulta a versão do banco. Ambas as opções
-encerram o processo sem iniciar o servidor MCP.
+`--check-config` valida todo o catálogo sem abrir conexões. `--test-connection`
+consulta a versão do banco com o ID informado (no exemplo, `erp-hml`). Reinicie
+o servidor MCP no cliente para carregar as alterações.
 
 ## Conexões
 
@@ -51,15 +55,15 @@ password_env = "ERP_HML_PASSWORD"
 
 | Campo | Regra |
 | --- | --- |
-| `config_version` | Obrigatório; valor 1. |
-| `id` | Obrigatório; único, no formato `[a-z][a-z0-9-]{0,63}`. |
-| `name`, `description` | Obrigatórios, não vazios; publicados no catálogo MCP. |
-| `aliases` | Lista opcional. Aliases repetidos deixam a escolha para o agente. |
+| `config_version` | Use `1`. |
+| `id` | Identificador único no formato `[a-z][a-z0-9-]{0,63}`. |
+| `name`, `description` | Textos obrigatórios exibidos no catálogo MCP. |
+| `aliases` | Lista opcional. Se um alias identificar mais de um banco, o agente deve perguntar qual usar. |
 | `engine` | `oracle`, `postgresql`, `mysql`, `sqlite` ou `sql_server`. |
 | `access_mode` | `read_only`, `read_write` ou `read_write_ddl`. SQL Server aceita apenas `read_only`. |
-| `default_schema` | Opcional; não restringe os grants do banco. |
+| `default_schema` | Schema padrão opcional. As permissões vêm do banco. |
 | `connection` | URL e credenciais. |
-| `execution` | Overrides de timeout, linhas e bytes; só podem reduzir os limites globais. |
+| `execution` | Permite reduzir o tempo de execução e os limites de linhas e bytes desta conexão. |
 
 | Engine | URL | Exemplo completo |
 | --- | --- | --- |
@@ -69,9 +73,10 @@ password_env = "ERP_HML_PASSWORD"
 | SQLite | `sqlite:./arquivo.db` | [SQLite](examples/config/databases/local-sqlite.toml) |
 | SQL Server | `sqlserver://host:1433/database` | [SQL Server](examples/config/databases/relatorios-sql-server.toml) |
 
-Cada campo `url`, `username` e `password` aceita valor direto ou a alternativa
-`url_env`, `username_env` e `password_env`. Usar as duas fontes para o mesmo campo
-é erro. Variável ausente ou vazia também é erro. Não versionar credenciais reais.
+Para cada campo (`url`, `username` e `password`), escolha uma fonte. Use o valor
+direto ou indique o nome da variável em `url_env`, `username_env` ou `password_env`,
+respectivamente. O servidor recusa variáveis ausentes ou vazias. Mantenha
+credenciais reais fora do repositório.
 
 URLs de rede exigem host e database/serviço. Credenciais embutidas, query string,
 fragmento e porta zero são recusados. No SQL Server, use login SQL e o host e a
@@ -89,7 +94,7 @@ schema padrão do login.
 
 ## Limites globais
 
-Exemplo com todos os campos: [global.toml](examples/config/global.toml).
+O [global.toml de exemplo](examples/config/global.toml) usa os limites padrão.
 
 | Seção/campo | Padrão | Aplicação |
 | --- | ---: | --- |

@@ -46,6 +46,9 @@ async fn context_contract(fixture: &common::Fixture, table: &str, package: &str)
             "statements":[
                 context(fixture.engine, package, "42"),
                 {"sql":format!("UPDATE {table} SET status='processed'")},
+                {"sql":query},
+                context(fixture.engine, package, "99"),
+                {"sql":format!("UPDATE {table} SET status='wrong_tenant' WHERE id=1")},
                 {"sql":query}
             ]
         }),
@@ -53,7 +56,10 @@ async fn context_contract(fixture: &common::Fixture, table: &str, package: &str)
     .await;
     common::succeeded(&write);
     assert_eq!(write["effect"], "committed");
+    assert_eq!(write["results"][1]["affected_rows"], 1);
     assert_eq!(write["results"][2]["rows"], json!([["processed"]]));
+    assert_eq!(write["results"][4]["affected_rows"], 0);
+    assert_eq!(write["results"][5]["rows"], json!([["tenant99"]]));
 
     let error_sql = match fixture.engine {
         Engine::Oracle => "SELECT 1/0 FROM dual",
@@ -79,23 +85,31 @@ async fn context_contract(fixture: &common::Fixture, table: &str, package: &str)
     };
     assert_eq!(failed["effect"], expected_effect);
 
-    for (tenant, expected) in [("42", "processed"), ("99", "tenant99")] {
-        let persisted = common::request(
+    let read_tenant = |tenant: &str| {
+        common::request(
             &service,
             json!({"database_id":"ro","statements":[
                 context(fixture.engine, package, tenant), {"sql":query}
             ]}),
         )
-        .await;
+    };
+    let (first, second, unscoped) = tokio::join!(
+        read_tenant("42"),
+        read_tenant("99"),
+        common::execute(&service, "ro", &query)
+    );
+    for (persisted, expected) in [(first, "processed"), (second, "tenant99")] {
         common::succeeded(&persisted);
         assert_eq!(persisted["results"][1]["rows"], json!([[expected]]));
     }
+    common::succeeded(&unscoped);
+    assert_eq!(unscoped["rows"], json!([]));
 }
 
 fn increase_row_budget(fixture: &common::Fixture) {
     let config = std::fs::read_to_string(&fixture.global)
         .unwrap()
-        .replace("max_rows=2", "max_rows=10");
+        .replace("max_rows=2", "max_rows=40");
     std::fs::write(&fixture.global, config).unwrap();
 }
 
@@ -107,6 +121,7 @@ async fn postgres_rls_uses_context_for_the_whole_transaction() {
     let suffix = &uuid::Uuid::new_v4().simple().to_string()[..8];
     let table = format!("dbmcp_ctx_{suffix}");
     let role = format!("dbmcp_ctx_user_{suffix}");
+    let schema = format!("RLS {suffix}");
     let mut admin = sqlx::PgConnection::connect(
         "postgresql://dbmcp_test:disposable-test-password@127.0.0.1:55432/dbmcp_test",
     )
@@ -115,6 +130,8 @@ async fn postgres_rls_uses_context_for_the_whole_transaction() {
     // FORCE RLS also needs a non-superuser: the container's initial user bypasses RLS.
     for sql in [
         format!("CREATE ROLE {role} LOGIN PASSWORD 'disposable-test-password'"),
+        format!(r#"CREATE SCHEMA "{schema}" AUTHORIZATION {role}"#),
+        format!(r#"SET search_path TO "{schema}""#),
         format!(
             "CREATE TABLE {table}(id INTEGER PRIMARY KEY, tenant_id INTEGER, status VARCHAR(30))"
         ),
@@ -137,10 +154,11 @@ async fn postgres_rls_uses_context_for_the_whole_transaction() {
             .directory
             .path()
             .join(format!("databases/{id}.toml"));
-        let config = std::fs::read_to_string(&path)
-            .unwrap()
-            .replace("username=\"dbmcp_test\"", &format!("username=\"{role}\""));
-        std::fs::write(path, config).unwrap();
+        let mut config: toml::Table =
+            toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        config.insert("default_schema".into(), schema.clone().into());
+        config["connection"]["username"] = role.clone().into();
+        std::fs::write(path, toml::to_string(&config).unwrap()).unwrap();
     }
 
     context_contract(&fixture, &table, "").await;
@@ -148,15 +166,24 @@ async fn postgres_rls_uses_context_for_the_whole_transaction() {
         &fixture.service(),
         json!({"database_id":"ro","statements":[
             {"sql":"SET LOCAL app.tenant_id = '99'"},
-            {"sql":format!("SELECT status FROM {table}")}
+            {"sql":format!("SELECT status, current_setting('search_path'),
+                 current_setting('statement_timeout'), current_setting('transaction_read_only')
+                 FROM {table}")}
         ]}),
     )
     .await;
     common::succeeded(&local);
-    assert_eq!(local["results"][1]["rows"], json!([["tenant99"]]));
+    assert_eq!(
+        local["results"][1]["rows"],
+        json!([["tenant99", format!(r#""{schema}""#), "5s", "on"]])
+    );
 
     admin
         .execute(sqlx::AssertSqlSafe(format!("DROP TABLE {table}")).into_sql_str())
+        .await
+        .unwrap();
+    admin
+        .execute(sqlx::AssertSqlSafe(format!(r#"DROP SCHEMA "{schema}""#)).into_sql_str())
         .await
         .unwrap();
     admin
@@ -219,6 +246,29 @@ async fn oracle_vpd_uses_package_context_and_preserves_uncertain_routine_effects
     let service = fixture.service();
     common::wait_for_oracle_ddl(&service, &table).await;
     context_contract(&fixture, &table, &package).await;
+
+    // Cross the driver's fetch window while VPD limits which tenant's rows it can return.
+    for (tenant, matches, expected) in [("42", 40, "processed"), ("99", 41, "tenant99")] {
+        let many = format!(
+            "SELECT t.status FROM {table} t CROSS JOIN all_objects a WHERE ROWNUM <= {matches}"
+        );
+        let read = common::request(
+            &service,
+            json!({"database_id":"ro","statements":[
+                context(Engine::Oracle, &package, tenant),
+                {"sql":many},
+                {"sql":format!("SELECT status FROM {table}")}
+            ]}),
+        )
+        .await;
+        common::succeeded(&read);
+        let page = &read["results"][1];
+        assert_eq!(page["rows"], json!(vec![[expected]; 40]));
+        assert_eq!(page["truncated"], matches > 40);
+        let last = &read["results"][2];
+        assert_eq!(last["rows"], json!([]));
+        assert_eq!(last["limit_reason"], "MAX_ROWS");
+    }
 
     // A failed setup stops before the following write.
     let invalid = common::request(

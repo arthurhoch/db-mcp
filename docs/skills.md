@@ -11,5 +11,4 @@ projeto. Fontes e revisões estão no [manifest](../.agents/skills/manifest.json
 | [rust-async-patterns](../.agents/skills/rust-async-patterns/SKILL.md) | Concorrência, admissão e cancelamento. | wshobson/agents. |
 | [rust-testing](../.agents/skills/rust-testing/SKILL.md) | Testes locais e de bancos reais. | affaan-m/ECC. |
 
-Os arquivos dos iam não foram alterados. As licenças das três fontes externas
-estão nas respectivas pastas como `LICENSE.upstream`.
+As licenças das três fontes externas estão nas respectivas pastas como `LICENSE.upstream`.
