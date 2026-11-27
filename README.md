@@ -2,13 +2,14 @@
 
 <!-- mcp-name: io.github.arthurhoch/db-mcp -->
 
+[![Latest release](https://badgen.net/github/release/arthurhoch/db-mcp/stable)](https://github.com/arthurhoch/db-mcp/releases/latest)
+[![CI](https://github.com/arthurhoch/db-mcp/actions/workflows/ci.yaml/badge.svg?branch=main&event=push)](https://github.com/arthurhoch/db-mcp/actions/workflows/ci.yaml?query=branch%3Amain)
+[![License](https://img.shields.io/github/license/arthurhoch/db-mcp)](LICENSE)
+[![MCP Registry](https://img.shields.io/badge/MCP_Registry-db--mcp-blue)](https://registry.modelcontextprotocol.io/?q=io.github.arthurhoch%2Fdb-mcp)
+
 [![M8ven Score](https://m8ven.ai/badge/mcp/arthurhoch-db-mcp-10phce?v=01c9b4c4da3cb37b05ed9721bf76fa14)](https://m8ven.ai/mcp/arthurhoch-db-mcp-10phce?s=readme)
 [![DB MCP on Glama](https://glama.ai/mcp/servers/arthurhoch/db-mcp/badges/score.svg)](https://glama.ai/mcp/servers/arthurhoch/db-mcp)
 [![DB MCP on mcprush](https://mcprush.com/badge/arthurhoch-db-mcp/score.svg)](https://mcprush.com/to/arthurhoch-db-mcp?ref=badge)
-[![MCP Registry](https://img.shields.io/badge/MCP_Registry-db--mcp-blue)](https://registry.modelcontextprotocol.io/?q=io.github.arthurhoch%2Fdb-mcp)
-[![Release](https://img.shields.io/github/v/release/arthurhoch/db-mcp)](https://github.com/arthurhoch/db-mcp/releases/latest)
-[![CI](https://github.com/arthurhoch/db-mcp/actions/workflows/ci.yaml/badge.svg?branch=main&event=push)](https://github.com/arthurhoch/db-mcp/actions/workflows/ci.yaml?query=branch%3Amain)
-[![License](https://img.shields.io/github/license/arthurhoch/db-mcp)](LICENSE)
 
 DB MCP lets your MCP client run SQL against databases you configure locally.
 It supports reads and writes on Oracle, PostgreSQL, MySQL and SQLite. SQL Server
